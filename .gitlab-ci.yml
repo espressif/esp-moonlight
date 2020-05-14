@@ -1,0 +1,66 @@
+stages:
+  - build
+
+variables:
+  BATCH_BUILD: "1"
+  V: "0"
+  MAKEFLAGS: "-j5 --no-keep-going"
+  IDF_PATH: "$CI_PROJECT_DIR/esp-idf"
+  IDF_CI_BUILD: "1"
+
+build_demo:
+  stage: build
+  image: $CI_DOCKER_REGISTRY/esp32-ci-env
+  tags:
+    - build
+  script:
+    # add gitlab ssh key
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -n $GITLAB_KEY > ~/.ssh/id_rsa_base64
+    - base64 --decode --ignore-garbage ~/.ssh/id_rsa_base64 > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - echo -e "Host gitlab.espressif.cn\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+    - git --version
+    - git submodule update --init --recursive
+    - git clone --recursive --branch release/v4.0 --depth 1 $GITLAB_SSH_SERVER/idf/esp-idf.git
+    - export PATH="$IDF_PATH/tools:$PATH"
+    - cd esp-idf
+    - source tools/ci/setup_python.sh
+    - source tools/ci/configure_ci_environment.sh
+    - tools/idf_tools.py --non-interactive install && eval "$(tools/idf_tools.py --non-interactive export)" || exit 1
+    - cd ..
+    - cd examples/1_hello_world
+    - make defconfig && make -j5
+    - make clean && rm sdkconfig && rm -r build
+    - idf.py build
+    - cd ../../
+    - cd examples/2_drivers
+    - make defconfig && make -j5
+    - make clean && rm sdkconfig && rm -r build
+    - idf.py build
+    - cd ../../
+    - cd examples/3_wifi_connection
+    - make defconfig && make -j5
+    - make clean && rm sdkconfig && rm -r build
+    - idf.py build
+    - cd ../../
+    - cd examples/4_network_config
+    - make defconfig && make -j5
+    - make clean && rm sdkconfig && rm -r build
+    - idf.py build
+    - cd ../../
+    - cd examples/5_app_control
+    - make defconfig && make -j5
+    - make clean && rm sdkconfig && rm -r build
+    - idf.py build
+    - cd ../../
+    - cd examples/6_ota
+    - make defconfig && make -j5
+    - make clean && rm sdkconfig && rm -r build
+    - idf.py build
+    - cd ../../
+    - cd examples/7_recognition
+    - make defconfig && make -j5
+    - make clean && rm sdkconfig && rm -r build
+    - idf.py build
