@@ -5,5 +5,8 @@
 
 PROJECT_NAME := moonlight
 
+EXTRA_COMPONENT_DIRS += $(PROJECT_PATH)/../../components/moonlight_board \
+    					$(PROJECT_PATH)/../../components/led_rgb 
+
 include $(IDF_PATH)/make/project.mk
 
