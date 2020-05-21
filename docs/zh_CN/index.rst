@@ -30,6 +30,6 @@ ESP-Moonlight
 
 
 
-.. |Jumpstart Now| image:: ../../_static/cover_page.jpg
+.. |Jumpstart Now| image:: ../_static/cover_page.jpg
 .. _Jumpstart Now: introduction.html
 

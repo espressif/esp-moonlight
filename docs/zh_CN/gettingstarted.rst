@@ -10,7 +10,7 @@
 
 使用 ESP32 开发产品时，常用的开发环境如下图所示：
 
-.. figure:: ../../_static/dev_setup.png
+.. figure:: ../_static/dev_setup.png
    :alt: Typical Developer Setup
    :align: center
 
@@ -47,7 +47,7 @@ ESP-IDF 详解
 ~~~~~~~~~~~~~~
 ESP-IDF 采用了一种基于组件的架构：
 
-.. figure:: ../../_static/idf_comp.png
+.. figure:: ../_static/idf_comp.png
    :alt: Component Based Design
 
    组件设计
@@ -59,7 +59,7 @@ ESP-IDF 中的所有软件均以“组件”的形式提供，比如操作系统
 
 开发人员通常借助 ESP-IDF 构建 *应用程序*，包含业务逻辑、外设驱动程序和 SDK 配置。
 
-.. figure:: ../../_static/app_structure.png
+.. figure:: ../_static/app_structure.png
    :alt: Application’s Structure
    :width: 230
    :align: center

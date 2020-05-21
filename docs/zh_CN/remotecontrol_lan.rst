@@ -14,7 +14,7 @@
 
 1. 将设备接入云，手机通过云平台的API来进行控制，如下图
 
-.. figure:: ../../_static/cloud_connectivity.png
+.. figure:: ../_static/cloud_connectivity.png
     :width: 700
     :align: center
 
@@ -23,7 +23,7 @@
 
 2. 设备在局域网内连接，不经过外网，如下图
 
-.. figure:: ../../_static/phone-device.png
+.. figure:: ../_static/phone-device.png
     :width: 400
     :align: center
 
@@ -36,7 +36,7 @@
 简单起见，我们选用的第二种方式并且使用 UDP 进行通信，ESP32 设备端作为 UDP Server，手机作为 Client 端，手机上使用微信小程序作为控制端。
 当在微信小程序中点击颜色块时，手机会通过 UDP 广播的方式发送 JSON 数据包，ESP32 接收到数据后进行解析，将得到的颜色值发送给LED灯。
 
-.. figure:: ../../_static/remote_lan.png
+.. figure:: ../_static/remote_lan.png
     :width: 600
     :align: center
 

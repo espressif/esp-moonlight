@@ -13,7 +13,7 @@ SoftAP 配网和 BLE 配网
 
 如下图所示，在配网阶段，用户通常使用智能手机将 Wi-Fi 信息安全地配置到设备中。设备获取 Wi-Fi 信息后，就会连接到用户指定的 Wi-Fi 网络中。
 
-.. figure:: ../../_static/network_config.png
+.. figure:: ../_static/network_config.png
     :width: 600
 
     配网过程
@@ -119,7 +119,7 @@ NVS 经过专门设计，不但可以防止设备断电带来的数据损坏影�
 
 在 ESP-MoonLight 提供的微信小程序中集成了配网功能，扫描下面二维码进入：
 
-.. figure:: ../../_static/wechat_mini.jpg
+.. figure:: ../_static/wechat_mini.jpg
     :align: center
 
 - 上电等待 10 秒的时间用之前保存的 Wi-Fi 信息进行自动连接，此时 LED 是黄色呼吸灯状态。

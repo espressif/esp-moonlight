@@ -139,9 +139,10 @@ LED 灯
 
         /**< Set a random color */
         h = esp_random() / 11930465;
-        s = esp_random() >> 24;
-        ESP_ERROR_CHECK(g_strip->set_all_hsv(g_strip, h, s, 100));
-        ESP_ERROR_CHECK(g_strip->refresh(g_strip, 100));
+        s = esp_random() / 42949673;
+        s = s < 40 ? 40 : s;
+
+        ESP_ERROR_CHECK(g_leds->set_hsv(g_leds, h, s, 100));
     }
 
 
