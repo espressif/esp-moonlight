@@ -1,11 +1,5 @@
-set(COMPONENT_SRCS
-    app_main.c
-    app_speech_rec.c
-    )
 
-set(COMPONENT_ADD_INCLUDEDIRS include)
+idf_component_register(SRCS "app_main.c" "app_speech_rec.c"
+                       INCLUDE_DIRS "include")
 
-
-
-register_component()
 

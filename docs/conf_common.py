@@ -184,7 +184,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "../../_static/espressif-logo.svg"
+html_logo = "../_static/espressif-logo.svg"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -194,7 +194,7 @@ html_logo = "../../_static/espressif-logo.svg"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['../../_static']
+html_static_path = ['../_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -261,7 +261,7 @@ latex_elements = {
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-latex_logo = "../../_static/cover_page_pdf.jpg"
+latex_logo = "../_static/cover_page_pdf.jpg"
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.

@@ -1,0 +1,1 @@
+.. include:: ../zh_CN/speech_recognition.rst

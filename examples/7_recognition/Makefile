@@ -6,12 +6,11 @@
 PROJECT_NAME := moonlight
 
 
-MODULE_PATH := $(abspath $(shell pwd))
 
-EXTRA_COMPONENT_DIRS += $(MODULE_PATH)/components/lib
-EXTRA_COMPONENT_DIRS += $(MODULE_PATH)/components/wake_word_engine
-EXTRA_COMPONENT_DIRS += $(MODULE_PATH)/components/speech_command_recognition
-EXTRA_COMPONENT_DIRS += $(MODULE_PATH)/components/acoustic_algorithm
+EXTRA_COMPONENT_DIRS += $(PROJECT_PATH)/../../components/moonlight_board \
+    					$(PROJECT_PATH)/../../components/led_rgb \
+    					$(PROJECT_PATH)/../../components/speech_recognition \
+    					$(PROJECT_PATH)/../../components/button
 
 include $(IDF_PATH)/make/project.mk
 

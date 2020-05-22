@@ -1,4 +1,4 @@
-/* WS2812 driver Example
+/* Driver Example
 
    This example code is in the Public Domain (or CC0 licensed, at your option.)
 
@@ -6,6 +6,7 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
+
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -32,7 +33,9 @@ static void vibration_handle(void *arg)
 
     /**< Set a random color */
     h = esp_random() / 11930465;
-    s = esp_random() >> 24;
+    s = esp_random() / 42949673;
+    s = s < 40 ? 40 : s;
+
     ESP_ERROR_CHECK(g_leds->set_hsv(g_leds, h, s, 100));
 }
 
@@ -80,7 +83,7 @@ void app_main(void)
 
     /**< Configure button and sensors */
     configure_push_button(BOARD_GPIO_BUTTON);
-    sensor_adc_init(BOARD_BAT_ADC_CHANNEL);
+    sensor_battery_init(BOARD_BAT_ADC_CHANNEL, BOARD_GPIO_BAT_CHRG, BOARD_GPIO_BAT_STBY);
     sensor_vibration_init(BOARD_GPIO_SENSOR_INT);
     sensor_vibration_triggered_register(vibration_handle, NULL);
 
