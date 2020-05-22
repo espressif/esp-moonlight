@@ -121,13 +121,9 @@ OTA 固件升级过程中，状态变更如图所示：
 运行 HTTPS Server
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. figure:: https://dl.espressif.com/dl/esp-idf/docs/_static/ota_self_signature.gif
-
-   生成证书演示
-
 - 输入 ``cd https_server`` 进入该文件夹
 
-- 创建一个自签名的证书和 KEY，执行命令： ``openssl req -x509 -newkey rsa:2048 -keyout ca_key.pem -out ca_cert.pem -days 365 -nodes``，后面的设置你可以参照上面的演示图片。在完成后会在当前目录下生成两个后缀为 `.pem` 的文件。
+- 创建一个自签名的证书和 KEY，执行命令： ``openssl req -x509 -newkey rsa:2048 -keyout ca_key.pem -out ca_cert.pem -days 365 -nodes``，后面的设置你可以参照 `生成证书演示 <https://dl.espressif.com/dl/esp-idf/docs/_static/ota_self_signature.gif>`_ 。在完成后会在当前目录下生成两个后缀为 `.pem` 的文件。
 
 - 启动 HTTPS server, 执行命令： ``openssl s_server -WWW -key ca_key.pem -cert ca_cert.pem -port 8070``。
 
