@@ -108,6 +108,12 @@ source_parsers = {
 # The master toctree document.
 master_doc = 'index'
 
+# configure Sphinx properly for Chinese PDF.
+latex_engine = 'xelatex'
+latex_use_xindy = False
+latex_elements = {
+    'preamble': '\\usepackage[UTF8]{ctex}\n',
+}
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
