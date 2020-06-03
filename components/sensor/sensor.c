@@ -41,16 +41,24 @@ static int32_t g_bat_chrg_num = 0;
 static int32_t g_bat_stby_num = 0;
 static esp_adc_cal_characteristics_t *g_adc_chars;
 static int32_t g_vol_bat = 0;
+static int32_t g_is_enable_vibration = 1;
 
-static uint8_t isr_enable_vibration = 1;
-static void IRAM_ATTR gpio_isr_handler(void *arg)
+
+static void periodic_timer_callback(void *arg)
 {
-    uint32_t gpio_num = (uint32_t) arg;
+    static int8_t last_level = 1;
+    int8_t level;
+    int32_t gpio_num = (int32_t)arg;
 
-    if (1 == isr_enable_vibration) {
-        isr_enable_vibration = 0;
-        xQueueOverwriteFromISR(g_gpio_evt_queue, &gpio_num, NULL);
+    level = gpio_get_level(gpio_num);
+    
+    /**< Find a falling edge */
+    if ((1 == g_is_enable_vibration) && (0 == level) && (1 == last_level)) {
+        g_is_enable_vibration = 0;
+        xQueueOverwrite(g_gpio_evt_queue, &gpio_num);
     }
+
+    last_level = level;
 }
 
 esp_err_t sensor_vibration_triggered_register(vibration_isr_t fn, void *arg)
@@ -83,7 +91,7 @@ static void sensor_vibration_task(void *arg)
                 }
 
                 vTaskDelay(pdMS_TO_TICKS(250));
-                isr_enable_vibration = 1;
+                g_is_enable_vibration = 1;
             }
         }
     }
@@ -94,7 +102,7 @@ esp_err_t sensor_vibration_init(int32_t gpio_num)
     gpio_config_t io_conf = {0};
 
     /**< interrupt of rising edge */
-    io_conf.intr_type = GPIO_PIN_INTR_NEGEDGE;
+    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
     /**< bit mask of the pins */
     io_conf.pin_bit_mask = (((uint64_t) 1) << gpio_num);
     /**< set as input mode */
@@ -111,8 +119,17 @@ esp_err_t sensor_vibration_init(int32_t gpio_num)
     }
 
     /**< install gpio isr service */
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(gpio_num, gpio_isr_handler, (void *) gpio_num);
+    esp_timer_create_args_t periodic_timer_args = {
+        .callback = &periodic_timer_callback,
+        .arg = (void *)gpio_num,
+        /* name is optional, but may help identify the timer when debugging */
+        .name = "periodic"
+    };
+
+    esp_timer_handle_t periodic_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
+    /* Start the timers */
+    ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, 5000));
 
     xTaskCreate(sensor_vibration_task, "vibration", 1024 * 2, (void *)gpio_num, 3, NULL);
 
