@@ -89,6 +89,8 @@ static uint8_t gl_sta_bssid[6];
 static uint8_t gl_sta_ssid[32];
 static int gl_sta_ssid_len;
 
+recv_handle_t g_recv_handle = NULL;
+
 /* connect infor*/
 static uint8_t server_if;
 static uint16_t conn_id;
@@ -137,6 +139,7 @@ static esp_err_t example_net_event_handler(void *ctx, system_event_t *event)
             memset(gl_sta_bssid, 0, 6);
             gl_sta_ssid_len = 0;
             esp_wifi_connect();
+            BLUFI_INFO("WiFi disconnected\n");
             xEventGroupClearBits(s_wifi_event_group, CONNECTED_BIT);
             break;
 
@@ -206,17 +209,6 @@ static esp_err_t example_net_event_handler(void *ctx, system_event_t *event)
     }
 
     return ESP_OK;
-}
-
-static void initialise_wifi(void)
-{
-    tcpip_adapter_init();
-    s_wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK(esp_event_loop_init(example_net_event_handler, NULL));
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_start());
 }
 
 static esp_blufi_callbacks_t example_callbacks = {
@@ -325,6 +317,9 @@ static void example_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_para
             strncpy((char *)sta_config.sta.ssid, (char *)param->sta_ssid.ssid, param->sta_ssid.ssid_len);
             sta_config.sta.ssid[param->sta_ssid.ssid_len] = '\0';
             esp_wifi_set_config(WIFI_IF_STA, &sta_config);
+            if(NULL != g_recv_handle){
+                g_recv_handle(event, &sta_config);
+            }
             BLUFI_INFO("Recv STA SSID %s\n", sta_config.sta.ssid);
             break;
 
@@ -332,6 +327,9 @@ static void example_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_para
             strncpy((char *)sta_config.sta.password, (char *)param->sta_passwd.passwd, param->sta_passwd.passwd_len);
             sta_config.sta.password[param->sta_passwd.passwd_len] = '\0';
             esp_wifi_set_config(WIFI_IF_STA, &sta_config);
+            if(NULL != g_recv_handle){
+                g_recv_handle(event, &sta_config);
+            }
             BLUFI_INFO("Recv STA PASSWORD %s\n", sta_config.sta.password);
             break;
 
@@ -437,25 +435,11 @@ static void example_gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_
     }
 }
 
-esp_err_t blufi_init(void)
+esp_err_t blufi_start(void)
 {
     esp_err_t ret = ESP_OK;
 
-    initialise_wifi();
-
-    EventBits_t uxBits;
-
-    for (size_t i = 0; i < 15; i++) {
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-        uxBits = xEventGroupGetBits(s_wifi_event_group);
-
-        if (uxBits & CONNECTED_BIT) {
-            ESP_LOGI(BLUFI_EXAMPLE_TAG, "WiFi Connected to ap");
-            return ret;
-        }
-    }
-
-    uint8_t mac_data[6]={0};
+    uint8_t mac_data[6] = {0};
     esp_read_mac(mac_data, ESP_MAC_WIFI_STA);
     sprintf(g_blufi_dev_name, "BLUFI_Moonlight_%02X%02X", mac_data[4], mac_data[5]);
 
@@ -509,8 +493,91 @@ esp_err_t blufi_init(void)
     return ret;
 }
 
-void blufi_wait_connect(void)
+esp_err_t blufi_wait_connection(TickType_t xTicksToWait)
 {
-    xEventGroupWaitBits(s_wifi_event_group, CONNECTED_BIT, false, false, portMAX_DELAY);
+    xEventGroupWaitBits(s_wifi_event_group, CONNECTED_BIT, false, false, xTicksToWait);
+    
+    return ESP_OK;
+}
+
+esp_err_t blufi_stop(void)
+{
     esp_blufi_close(server_if, conn_id);
+    esp_blufi_profile_deinit();
+    blufi_security_deinit();
+
+    esp_bluedroid_disable();
+    esp_bluedroid_deinit();
+    esp_bt_controller_disable();
+    esp_bt_controller_deinit();
+
+    ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
+    return ESP_OK;
+}
+
+esp_err_t blufi_network_init(void)
+{
+    tcpip_adapter_init();
+    s_wifi_event_group = xEventGroupCreate();
+    ESP_ERROR_CHECK(esp_event_loop_init(example_net_event_handler, NULL));
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    return ESP_OK;
+}
+
+esp_err_t blufi_get_status(blufi_status_t *status)
+{
+    *status &= ~(BLUFI_STATUS_STA_CONNECTED | BLUFI_STATUS_BT_CONNECTED);
+
+    EventBits_t bits = xEventGroupGetBits(s_wifi_event_group);
+    if (bits & CONNECTED_BIT)
+    {
+        *status |= BLUFI_STATUS_STA_CONNECTED;
+    }
+    if (ble_is_connected)
+    {
+        *status |= BLUFI_STATUS_BT_CONNECTED;
+    }
+    
+    return ESP_OK;
+}
+
+esp_err_t blufi_is_configured(bool *configured)
+{
+    *configured = false;
+
+    /* Get WiFi Station configuration */
+    wifi_config_t wifi_cfg;
+    if (esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_cfg) != ESP_OK) {
+        return ESP_FAIL;
+    }
+
+    if (strlen((const char*) wifi_cfg.sta.ssid)) {
+        *configured = true;
+        BLUFI_INFO("Found ssid %s",     (const char*) wifi_cfg.sta.ssid);
+        BLUFI_INFO("Found password %s", (const char*) wifi_cfg.sta.password);
+    }
+    return ESP_OK;
+}
+
+esp_err_t blufi_set_wifi_info(const char *ssid, const char *pswd)
+{
+    if (NULL == ssid || NULL == pswd)
+    {
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    strcpy((char*)sta_config.sta.ssid, ssid);
+    strcpy((char*)sta_config.sta.password, pswd);
+    esp_wifi_set_config(WIFI_IF_STA, &sta_config);
+    return ESP_OK;
+}
+
+esp_err_t blufi_install_recv_handle(recv_handle_t fn)
+{
+    g_recv_handle = fn;
+    return ESP_OK;
 }

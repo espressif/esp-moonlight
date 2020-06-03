@@ -133,6 +133,18 @@ typedef struct {
 } led_rgb_config_t;
 
 
+#define LED_RGB_DEFAULT_CONFIG(red_gpio, green_gpio, blue_gpio) {  \
+    .red_gpio_num   = (red_gpio),         \
+    .green_gpio_num = (green_gpio),       \
+    .blue_gpio_num  = (blue_gpio),        \
+    .red_ledc_ch    = LEDC_CHANNEL_0,     \
+    .green_ledc_ch  = LEDC_CHANNEL_1,     \
+    .blue_ledc_ch   = LEDC_CHANNEL_2,     \
+    .speed_mode = LEDC_LOW_SPEED_MODE,    \
+    .timer_sel  = LEDC_TIMER_0,           \
+    .freq       = 20000,                  \
+    .resolution = LEDC_TIMER_8_BIT,       \
+}
 
 /**
 * @brief Create a new LED driver (based on LEDC peripheral)
