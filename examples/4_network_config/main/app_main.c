@@ -84,17 +84,7 @@ void app_main(void)
     configure_push_button(BOARD_GPIO_BUTTON);
 
     /**< configure led driver */
-    led_rgb_config_t rgb_config = {0};
-    rgb_config.red_gpio_num   = BOARD_GPIO_LED_R;
-    rgb_config.green_gpio_num = BOARD_GPIO_LED_G;
-    rgb_config.blue_gpio_num  = BOARD_GPIO_LED_B;
-    rgb_config.red_ledc_ch    = LEDC_CHANNEL_0;
-    rgb_config.green_ledc_ch  = LEDC_CHANNEL_1;
-    rgb_config.blue_ledc_ch   = LEDC_CHANNEL_2;
-    rgb_config.speed_mode = LEDC_LOW_SPEED_MODE;
-    rgb_config.timer_sel  = LEDC_TIMER_0;
-    rgb_config.freq       = 20000;
-    rgb_config.resolution = LEDC_TIMER_8_BIT;
+    led_rgb_config_t rgb_config = LED_RGB_DEFAULT_CONFIG(BOARD_GPIO_LED_R, BOARD_GPIO_LED_G, BOARD_GPIO_LED_B);
     g_leds = led_rgb_create(&rgb_config);
 
     if (!g_leds) {
@@ -105,12 +95,23 @@ void app_main(void)
     xTaskCreatePinnedToCore(breath_light_task, "breath_light_task", 1024 * 3, NULL, 5, &g_breath_light_task_handle, 1);
 
     /**< Initialize the BluFi */
-    blufi_init();
+    blufi_network_init();
+    bool configured;
+    blufi_is_configured(&configured);
+
+    if (!configured) {
+        blufi_start();
+    }
 
     ESP_LOGI(TAG, "Wait for connect");
-    blufi_wait_connect();
-    ESP_LOGI(TAG, "Color fade start");
+    blufi_wait_connection(portMAX_DELAY);
+
+    if (!configured) {
+        blufi_stop();
+    }
+
     vTaskDelete(g_breath_light_task_handle);
+    ESP_LOGI(TAG, "Color fade start");
 
     while (true) {
 

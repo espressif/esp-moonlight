@@ -41,9 +41,9 @@ typedef struct {
 } led_pwm_t;
 
 static const uint8_t LEDGammaTable[] = {
-     0,   0,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
-     2,   2,   2,   2,   2,   2,   2,   3,   3,   3,   3,   3,   4,   4,   4,   4,
-     5,   5,   5,   5,   6,   6,   6,   6,   7,   7,   7,   8,   8,   8,   9,   9,
+    0,   0,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+    2,   2,   2,   2,   2,   2,   2,   3,   3,   3,   3,   3,   4,   4,   4,   4,
+    5,   5,   5,   5,   6,   6,   6,   6,   7,   7,   7,   8,   8,   8,   9,   9,
     10,  10,  10,  11,  11,  12,  12,  12,  13,  13,  14,  14,  15,  15,  16,  16,
     17,  17,  18,  18,  19,  19,  20,  20,  21,  21,  22,  23,  23,  24,  24,  25,
     26,  26,  27,  28,  28,  29,  30,  30,  31,  32,  32,  33,  34,  34,  35,  36,
@@ -51,13 +51,13 @@ static const uint8_t LEDGammaTable[] = {
     50,  51,  51,  52,  53,  54,  55,  56,  57,  58,  59,  60,  61,  62,  63,  64,
     65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  75,  76,  77,  78,  80,  81,
     82,  83,  84,  85,  86,  88,  89,  90,  91,  92,  94,  95,  96,  97,  98, 100,
-   101, 102, 103, 105, 106, 107, 109, 110, 111, 113, 114, 115, 117, 118, 119, 121,
-   122, 123, 125, 126, 128, 129, 130, 132, 133, 135, 136, 138, 139, 141, 142, 144,
-   145, 147, 148, 150, 151, 153, 154, 156, 157, 159, 161, 162, 164, 165, 167, 169,
-   170, 172, 173, 175, 177, 178, 180, 182, 183, 185, 187, 189, 190, 192, 194, 196,
-   197, 199, 201, 203, 204, 206, 208, 210, 212, 213, 215, 217, 219, 221, 223, 225,
-   226, 228, 230, 232, 234, 236, 238, 240, 242, 244, 246, 248, 250, 252, 254, 255 
-   };
+    101, 102, 103, 105, 106, 107, 109, 110, 111, 113, 114, 115, 117, 118, 119, 121,
+    122, 123, 125, 126, 128, 129, 130, 132, 133, 135, 136, 138, 139, 141, 142, 144,
+    145, 147, 148, 150, 151, 153, 154, 156, 157, 159, 161, 162, 164, 165, 167, 169,
+    170, 172, 173, 175, 177, 178, 180, 182, 183, 185, 187, 189, 190, 192, 194, 196,
+    197, 199, 201, 203, 204, 206, 208, 210, 212, 213, 215, 217, 219, 221, 223, 225,
+    226, 228, 230, 232, 234, 236, 238, 240, 242, 244, 246, 248, 250, 252, 254, 255
+};
 
 
 /**
@@ -117,32 +117,32 @@ static void led_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_
     }
 }
 
-void led_rgb2hsv(uint8_t in_r, uint8_t in_g, uint8_t in_b, uint32_t *H, uint32_t *S, uint32_t *V)
+static void led_rgb2hsv(uint8_t r, uint8_t g, uint8_t b, uint32_t *h, uint32_t *s, uint32_t *v)
 {
-    int32_t R = in_r;
-    int32_t G = in_g;
-    int32_t B = in_b;
+    int32_t R = r;
+    int32_t G = g;
+    int32_t B = b;
     int32_t min, max, delta, tmp;
     tmp = R > G ? G : R;
     min = tmp > B ? B : tmp;
     tmp = R > G ? R : G;
     max = tmp > B ? tmp : B;
-    *V = 100 * max / 255; /**< v */
+    *v = 100 * max / 255; /**< v */
     delta = max - min;
 
     if (max != 0) {
-        *S = 100 * delta / max; /**< s */
+        *s = 100 * delta / max; /**< s */
     } else {
         /**< r = g = b = 0 */
-        *S = 0;
-        *H = 0;
+        *s = 0;
+        *h = 0;
         return;
     }
 
     float h_temp = 0;
 
     if (delta == 0) {
-        *H = 0;
+        *h = 0;
         return;
     } else if (R == max) {
         h_temp = ((float)(G - B) / (float)delta);           /**< between yellow & magenta */
@@ -158,7 +158,7 @@ void led_rgb2hsv(uint8_t in_r, uint8_t in_g, uint8_t in_b, uint32_t *H, uint32_t
         h_temp += 360;
     }
 
-    *H = (uint32_t)h_temp; /**< degrees */
+    *h = (uint32_t)h_temp; /**< degrees */
 }
 
 static esp_err_t led_set_rgb(led_rgb_t *led_rgb, uint32_t red, uint32_t green, uint32_t blue)
@@ -196,16 +196,19 @@ static esp_err_t led_set_hsv(led_rgb_t *led_rgb, uint32_t h, uint32_t s, uint32_
 static esp_err_t led_get_rgb(led_rgb_t *led_rgb, uint8_t *red, uint8_t *green, uint8_t *blue)
 {
     led_pwm_t *led_pwm = __containerof(led_rgb, led_pwm_t, parent);
-    if(NULL!=red){
-        *red   = led_pwm->rgb[0];
+
+    if (NULL != red) {
+        *red = led_pwm->rgb[0];
     }
-    if(NULL!=green){
-        *green   = led_pwm->rgb[1];
+
+    if (NULL != green) {
+        *green = led_pwm->rgb[1];
     }
-    if(NULL!=blue){
-        *blue   = led_pwm->rgb[2];
+
+    if (NULL != blue) {
+        *blue = led_pwm->rgb[2];
     }
-    
+
     return ESP_OK;
 }
 
@@ -216,13 +219,15 @@ static esp_err_t led_get_hsv(led_rgb_t *led_rgb, uint32_t *h, uint32_t *s, uint3
 
     led_rgb2hsv(led_pwm->rgb[0], led_pwm->rgb[1], led_pwm->rgb[2], &_h, &_s, &_v);
 
-    if(NULL!=h){
+    if (NULL != h) {
         *h = _h;
     }
-    if(NULL!=s){
+
+    if (NULL != s) {
         *s = _s;
     }
-    if(NULL!=v){
+
+    if (NULL != v) {
         *v = _v;
     }
 
