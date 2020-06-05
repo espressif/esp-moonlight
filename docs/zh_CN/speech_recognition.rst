@@ -1,7 +1,7 @@
 语音识别控制
 =============
 
-:link_to_translation:`en:[English]`
+
 
 这个示例将展示我们如何使用一个乐鑫提供的语音识别相关方向算法模型 ESP-SR 来控制 LED 灯。如需查看相关代码，请前往 ``examples/7_recognition`` 目录。
 
