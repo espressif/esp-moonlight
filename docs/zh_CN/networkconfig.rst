@@ -1,7 +1,7 @@
 SoftAP 配网和 BLE 配网
 ============================
 
-:link_to_translation:`en:[English]`
+
 
 在上个示例中有个很不方便的地方，我们把 Wi-Fi 信息（SSID 和 PASSWORD）直接固定写在了程序，不能随时改变想要连接的 wifi，显然这样是不实用的。
 所以出现了包括SoftAP 配网、BLE 配网、smartconfig 等多种配网方式，允许用户在设备运行时，将其 Wi-Fi 信息配置到设备中。不同的方式各有优缺点，主要取决于应用场景。

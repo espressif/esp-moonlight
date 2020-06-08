@@ -1,7 +1,7 @@
 Wi-Fi 连接
 ================
 
-:link_to_translation:`en:[English]`
+
 
 ESP32 芯片具有 WiFi 和蓝牙的功能，本节我们将使用 ESP32 连接上一个指定的 WiFi 网络，此 Wi-Fi 网络信息已嵌入到设备固件中。如需查看相关代码，请前往 ``examples/3_wifi_connection`` 目录。
 
