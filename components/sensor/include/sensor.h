@@ -23,7 +23,13 @@
 #include "esp_err.h"
 
 
-typedef void (*vibration_isr_t)(void*);
+typedef void (*vibration_isr_t)(void *);
+
+typedef enum {
+    CHRG_STATE_UNKNOW   = 0x00,
+    CHRG_STATE_CHARGING,
+    CHRG_STATE_FULL,
+} chrg_state_t;
 
 
 /**
@@ -32,7 +38,7 @@ typedef void (*vibration_isr_t)(void*);
  * @param  adc_channel  ADC channel connected to voltage divider
  * @param  chrg_num  Connected to battery charge chip CHRG pin
  * @param  stby_num  Connected to battery charge chip STBY pin
- * 
+ *
  * @return
  *     - ESP_OK Success
  *     - ESP_FAIL error
@@ -44,17 +50,28 @@ esp_err_t sensor_battery_init(int32_t adc_channel, int32_t chrg_num, int32_t stb
  *
  * @param  voltage  battery voltage(mv)
  * @param  chrg_state  charge state
- * 
+ *
  * @return
  *     - ESP_OK Success
  */
 esp_err_t sensor_battery_get_info(int32_t *voltage, uint8_t *chrg_state);
 
 /**
+ * @brief   Get battery simple info , include battery level and charge state
+ *
+ * @param  level  battery level (0 ~ 100)
+ * @param  state  charge state, see struct chrg_state_t
+ *
+ * @return
+ *     - ESP_OK Success
+ */
+esp_err_t sensor_battery_get_info_simple(int32_t *level, chrg_state_t *state);
+
+/**
  * @brief   initialize vabration sensors
  *
  * @param  gpio_num  vibration sensor gpio number
- * 
+ *
  * @return
  *     - ESP_OK Success
  *     - ESP_FAIL error
@@ -66,7 +83,7 @@ esp_err_t sensor_vibration_init(int32_t gpio_num);
  *
  * @param  fn  Triggered handler function.
  * @param  arg  Parameter for handler function
- * 
+ *
  * @return
  *     - ESP_OK Success ;
  *     - ESP_ERR_INVALID_ARG pointer fn error
