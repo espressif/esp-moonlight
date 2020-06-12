@@ -1,4 +1,4 @@
-# ESP32-MoonLight
+# ESP-MoonLight
 
 
 | <img src="docs/_static/espressif-logo.svg" alt="espressif-logo" width="300" /> |
@@ -21,7 +21,7 @@ ESP-Moonlight 是乐鑫推出的基于 ESP32 开发的月球灯示例项目，�
 
 ## 硬件
 
-本项目使用的开发板为 ESP32-Moonlight ，集成了以下器件：
+本项目使用的开发板为 ESP32-Moonlight ，集成了以下组件：
 
 <table>
     <tr>
@@ -30,15 +30,15 @@ ESP-Moonlight 是乐鑫推出的基于 ESP32 开发的月球灯示例项目，�
     </tr>
 </table>
 
-- [ESP32-Moonlight Schematic (PDF)](hardware/ESP-Moonlight_V2.0_N_XX_20200421_V0.3/01_Schematic/SCH_ESP-MOONLIGHT_V2_0_20200421A.pdf)
+- [ESP32-Moonlight 原理图 (PDF)](hardware/ESP-Moonlight_V2.0_N_XX_20200421_V0.3/01_Schematic/SCH_ESP-MOONLIGHT_V2_0_20200421A.pdf)
 
 - 月球灯开发板具有以下功能：
   - 板载自动下载电路
-  - 电池充电功能
+  - 电池充电
   - 支持手机进行配网
   - 支持手机控制
   - 支持触碰控制
-  - 支持OTA升级
+  - 支持 OTA 升级
   - 支持语音控制
 
 

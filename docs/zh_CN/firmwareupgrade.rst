@@ -1,9 +1,7 @@
 固件升级
 =================
 
-
-
-有时我们开发了新的功能，希望给已经在运行的设备进行固件升级。但此时很可能因为电路板已经被安装了外壳等原因而不能方便的使用下载器将新的固件烧录到设备，此时 OTA(over-the-air) 升级将是十分需要的功能。
+有时我们开发了新的功能，希望给已经在运行的设备进行固件升级。但很可能因为电路板已经被安装了外壳等原因而不能方便地使用下载器将新的固件烧录到设备，此时将需要使用 OTA (over-the-air) 升级功能。
 
 本节将实现 ESP32 从指定的 URL 来更新固件的功能。如需查看相关代码，请前往 ``examples/6_ota`` 目录。
 
@@ -13,22 +11,23 @@ Flash 分区
 
 在讨论固件升级之前，让我们先了解一下 ESP32 中的 flash 分区。
 
-在 ESP32 的应用中，通常包含多种不同的类型的数据，因此通过分区表将 flash 划分为多个逻辑分区。具体结构如下：
+在 ESP32 的应用中，通常包含多种不同类型的数据，因此通过分区表将 flash 划分为多个逻辑分区。具体结构如下：
 
 .. figure:: ../_static/flash_partitions_intro.png
    :width: 500
+   :alt: Flash Partitions
    :align: center
 
    Flash 分区结构
 
 从上图可以看出，flash 地址在 0x9000 之前的结构是固定的，第一部分包括二级 Bootloader，后面紧接着就是分区表，分区表用来管理储存在 flash 剩余区域的数据分布。
-关于分区表内容的详细信息可参见 `分区表介绍 <https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/api-guides/partition-tables.html>`_
+关于分区表内容的详细信息可参见 `分区表介绍 <https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/api-guides/partition-tables.html>`_。
 
 
 创建分区表
 ~~~~~~~~~~~~~
 
-使用 OTA 功能需要包含 OTA Data 分区和两个应用程序分区，可以创建一个分区表文件来实现，即 CSV 文件（Comma Separated Values，逗号分隔值）
+使用 OTA 功能需要包含 OTA Data 分区和两个应用程序分区，可以通过创建一个分区表文件来实现，即 CSV 文件（Comma Separated Values，逗号分隔值）。
 
 本示例所用的分区表文件内容如下：
 
@@ -45,23 +44,25 @@ Flash 分区
 
 .. figure:: ../_static/flash_partitions_upgrade.png
    :width: 300
+   :alt: Flash Partitions Upgrade
    :align: center
 
    OTA Flash 分区
 
-创建此分区文件后，我们还在 menuconfig 中配置使用该自定义分区，而非默认分区。你可以在 ``Partition Table  ---> Partition Table`` 中选择为 ``Custom partition table CSV``，同时在下面指定分区表文件名。
+创建此分区文件后，我们还需在 menuconfig 中配置使用该自定义分区，而非默认分区。你可以在 ``Partition Table  ---> Partition Table`` 中选择 ``Custom partition table CSV``，同时在下面指定分区表文件名。
 本示例中，已经在 ``sdkconfig.defaults`` 文件中重写了默认配置，因此无需再进行其他配置操作。
 
 
 空中升级过程
 ----------------
 
-空中升级使用两个应用程序分区交替工作的方式来保证不会因升级失败而无法启动设备，OTA Data 分区将记录哪个是活动分区。
+空中升级使用两个应用程序分区交替工作的方式，确保不会因升级失败而无法启动设备，OTA Data 分区将记录哪个是活动分区。
 
 OTA 固件升级过程中，状态变更如图所示：
 
 .. figure:: ../_static/upgrade_flow.png
    :width: 700
+   :alt: Upgrade Flow
    :align: center
 
    固件升级步骤
@@ -103,6 +104,7 @@ OTA 固件升级过程中，状态变更如图所示：
 
 固件升级 URL
 ~~~~~~~~~~~~~~
+
 使用本示例之前需要配置一个 URL 链接，在 menuconfig 中的 ``Example Configuration  ---> firmware upgrade url endpoint`` 进行配置。
 
 示例中使用的是本地的 http server，所以这里的 IP 地址需改成本机的。
@@ -111,21 +113,24 @@ OTA 固件升级过程中，状态变更如图所示：
 演示
 ----------
 
-在本示例中升级的过程可以用下面的图表示：
+本示例中的升级过程如下图所示：
 
 .. figure:: ../_static/ota_workflow.png
    :width: 700
+   :alt: OTA Workflow
    :align: center
+
+   OTA 升级过程
 
 
 运行 HTTPS Server
 ~~~~~~~~~~~~~~~~~~~~~
 
-- 输入 ``cd https_server`` 进入该文件夹
+- 输入 ``cd https_server``，进入该文件夹。
 
-- 创建一个自签名的证书和 KEY，执行命令： ``openssl req -x509 -newkey rsa:2048 -keyout ca_key.pem -out ca_cert.pem -days 365 -nodes``，后面的设置你可以参照 `生成证书演示 <https://dl.espressif.com/dl/esp-idf/docs/_static/ota_self_signature.gif>`_ 。在完成后会在当前目录下生成两个后缀为 `.pem` 的文件。
+- 执行命令：``openssl req -x509 -newkey rsa:2048 -keyout ca_key.pem -out ca_cert.pem -days 365 -nodes``，创建一个自签名的证书和 KEY，后续设置可参照 `生成证书演示 <https://dl.espressif.com/dl/esp-idf/docs/_static/ota_self_signature.gif>`_。该步骤完成后会在当前目录下生成两个后缀为 `.pem` 的文件。
 
-- 启动 HTTPS server, 执行命令： ``openssl s_server -WWW -key ca_key.pem -cert ca_cert.pem -port 8070``。
+- 启动 HTTPS server，执行命令：``openssl s_server -WWW -key ca_key.pem -cert ca_cert.pem -port 8070``。
 
 - 在这个文件夹下我们已经放了一个示例 `2_drivers` 的程序固件 `moonlight.bin`。你也可以替换成自己的固件，当然你需要去配置对应的 `firmware upgrade url endpoint`。
 
@@ -136,10 +141,11 @@ OTA 固件升级过程中，状态变更如图所示：
 
 .. note:: 
 
-   对于 Windows 系统的用户来说, 需要在 `openssl` 命令前加上 `winpty`
+   Windows 系统的用户来需要在 `openssl` 命令前加上 `winpty`。命令行如下所示：
 
-   - `winpty openssl req -x509 -newkey rsa:2048 -keyout ca_key.pem -out ca_cert.pem -days 365 -nodes`
-   - `winpty openssl s_server -WWW -key ca_key.pem -cert ca_cert.pem -port 8070`
+   - ``winpty openssl req -x509 -newkey rsa:2048 -keyout ca_key.pem -out ca_cert.pem -days 365 -nodes``
+   - ``winpty openssl s_server -WWW -key ca_key.pem -cert ca_cert.pem -port 8070``
+
 
 编译烧录固件
 ~~~~~~~~~~~~
@@ -147,10 +153,11 @@ OTA 固件升级过程中，状态变更如图所示：
 和以前一样的执行 ``idf.py flash monitor`` 即可编译并烧录固件到开发板，同时打开串口监视器。
 在编译时，会将我们前面生成的 ``ca_cert.pem`` 证书文件嵌入到最终的固件中。
 
+
 执行固件升级
 ~~~~~~~~~~~~
 
-在烧录固件后的开发板将处于等待配网的状态，表现为黄色的呼吸灯。只有在经过配网后才能进行 OTA 的操作，在配网后就可以通过短按按键来触发固件升级操作。
+烧录固件后的开发板将处于等待配网的状态，表现为黄色的呼吸灯。只有在经过配网后才能进行 OTA 的操作，在配网后就可以通过短按按键来触发固件升级操作。
 升级成功将会自动重启运行升级后的固件。
 
 在升级开始时，运行 HTTPS Server 的终端下将会出现如下信息：
