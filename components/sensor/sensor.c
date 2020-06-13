@@ -51,7 +51,7 @@ static void periodic_timer_callback(void *arg)
     int32_t gpio_num = (int32_t)arg;
 
     level = gpio_get_level(gpio_num);
-    
+
     /**< Find a falling edge */
     if ((1 == g_is_enable_vibration) && (0 == level) && (1 == last_level)) {
         g_is_enable_vibration = 0;
@@ -208,6 +208,33 @@ esp_err_t sensor_battery_get_info(int32_t *voltage, uint8_t *chrg_state)
         uint8_t chrg = !gpio_get_level(g_bat_chrg_num);
         uint8_t stby = !gpio_get_level(g_bat_stby_num);
         *chrg_state = (chrg << 1) | stby;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t sensor_battery_get_info_simple(int32_t *level, chrg_state_t *state)
+{
+    int32_t vol;
+    uint8_t chrg_state;
+
+    sensor_battery_get_info(&vol, &chrg_state);
+
+    if (NULL != level) {
+        vol = vol > 4200 ? 4200 : vol;
+        vol = vol < 3600 ? 3600 : vol;
+        vol -= 3600;
+        *level = vol / 6;
+    }
+
+    if (NULL != state) {
+        if (0x02 == chrg_state) {
+            *state = CHRG_STATE_CHARGING;
+        } else if (0x01 == chrg_state) {
+            *state = CHRG_STATE_FULL;
+        } else {
+            *state = CHRG_STATE_UNKNOW;
+        }
     }
 
     return ESP_OK;
