@@ -3,7 +3,7 @@
 
 
 
-这个示例将展示我们如何使用一个乐鑫提供的语音识别相关方向算法模型 ESP-SR 来控制 LED 灯。如需查看相关代码，请前往 ``examples/7_recognition`` 目录。
+这个示例将展示如何使用一个乐鑫提供的语音识别相关方向算法模型 ESP-SR 来控制 LED 灯。如需查看相关代码，请前往 ``examples/7_recognition`` 目录。
 
 该示例包含以下功能：
 
@@ -16,17 +16,19 @@ ESP-SR 介绍
 
 包含三个主要模块：
 
-- 唤醒词识别模型 WakeNet
-- 语音命令识别模型 MultiNet
-- 声学算法：MASE(Mic Array Speech Enhancement), AEC(Acoustic Echo Cancellation), VAD(Voice Activity Detection), AGC(Automatic Gain Control), NS(Noise Suppression)
+- 唤醒词识别模型：WakeNet
+- 语音命令识别模型：MultiNet
+- 声学算法：麦克风阵列语音增强（Mic-Array Speech Enhancement，简称 MASE）、回声消除（Acoustic Echo Cancellation，简称 AEC）、语音端点检测（Voice Activity Detection，简称 VAD）、自动增益控制（Automatic Gain Control，简称 AGC）、噪声抑制（Noise Suppression，简称 NS）
 
 唤醒词模型 WakeNet 目前提供了免费的 “Hi，乐鑫” 唤醒词，这也是我们这里使用的唤醒词。命令词识别模型 MultiNet 则允许用户自定义语音命令而无需重新训练模型。
 
-详细信息可参见 `ESP-SR <https://github.com/espressif/esp-sr>`_ 
+详细信息可参见 `ESP-SR <https://github.com/espressif/esp-sr>`_。
+
 
 麦克风输入
 ---------------
-要使用语音识别控制，首先应该有一个音频输入。开发板使用了一个 I2S 数字输出的 MEMS 麦克风直接与 ESP32 的 I2S 接口连接
+
+要使用语音识别控制，首先应该有一个音频输入。开发板使用了一个 I2S 数字输出的 MEMS 麦克风直接与 ESP32 的 I2S 接口连接。
 
 硬件接口如下：
 
@@ -40,12 +42,12 @@ ESP-SR 介绍
 | DMIC_I2S_SDO |   IO17        |        IO25     |
 +--------------+---------------+-----------------+
 
-这种设计无需使用外置 Audio Codec ，极大的简化了电路。
+这种设计无需使用外置 Audio Codec ，极大地简化了电路。
 
 代码
 ---------
 
-下面是调用语音识别模型的部分代码
+以下所示为调用语音识别模型的部分代码：
 
 .. code-block:: c
 
@@ -104,15 +106,16 @@ ESP-SR 介绍
       }
    }
 
-- 首先调用 :c:func:`i2s_read` 从麦克风读取一段音频数据，然后进行数据格式的调整
-- 根据 ``enable_wn`` 变量来控制使用唤醒识别还是命令词识别
-- 调用 :c:func:`detect` 函数将音频数据送入对应的识别网络进行识别
-- 在识别命令词时，当识别的帧数达到最大时也就是 mn_count == mn_num 时回到唤醒词识别状态
+- 首先调用 :c:func:`i2s_read` 从麦克风读取一段音频数据，然后进行数据格式的调整。
+- 根据 ``enable_wn`` 变量来控制使用唤醒识别还是命令词识别。
+- 调用 :c:func:`detect` 函数将音频数据送入对应的识别网络进行识别。
+- 在识别命令词时，当识别的帧数达到最大（即 mn_count=mn_num）时回到唤醒词识别状态。
 
 
 命令词定义
 ---------------
-在 ``sdkconfig.defaults`` 文件中定义了 11 条控制命令如下：
+
+``sdkconfig.defaults`` 文件中定义了 11 条控制命令，如下所示：
 
 ::
 
@@ -128,14 +131,14 @@ ESP-SR 介绍
    CONFIG_CN_SPEECH_COMMAND_ID9="an yi dian"
    CONFIG_CN_SPEECH_COMMAND_ID10="jian xiao liang du"
 
-你也可以使用 menuconfig 添加自己的语音命令，方法可参见 `MultiNet 介绍 <https://github.com/espressif/esp-sr/blob/master/speech_command_recognition/README.md>`_。
-在添加完语音后记得更改语音命令的数量，使之对应实际的数量
-
+你也可以使用 menuconfig 添加自己的语音命令，具体方法可参见 `MultiNet 介绍 <https://github.com/espressif/esp-sr/blob/master/speech_command_recognition/README.md>`_。
+请注意，添加语音命令后需更改语音命令的数量，使之显示实际数量。
 
 
 演示
 ---------------
- - 使用语音控制应先说出唤醒词 “Hi，乐鑫” 用于唤醒开发板，让 ESP32 运行命令词识别模型，此时呈现绿色呼吸灯状态
- - 唤醒后可说出 “打开点灯” “关闭点灯” “增大亮度” 等来控制灯的状态，支持的语音指令在上面已列出
- - 在唤醒后亮绿色呼吸灯的时间内为命令词识别状态，一段时间后未识别到有效指令将自动回到等待唤醒的状态
+
+- 先说出唤醒词“Hi，乐鑫”，唤醒开发板，让 ESP32 运行命令词识别模型，此时 LED 呈现绿色呼吸灯状态。
+- 唤醒后可说出“打开电灯”、“关闭电灯”、“增大亮度”等命令来控制灯的状态，前文已列出可支持的全部语音指令。
+- 唤醒后亮绿色呼吸灯为命令词识别状态，若一段时间后未识别到有效指令，开发板将自动回到等待唤醒的状态。
 
