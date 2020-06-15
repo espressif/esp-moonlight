@@ -1,5 +1,6 @@
 # ESP-MoonLight
 
+[![Documentation Status](https://readthedocs.com/projects/espressif-esp-moonlight/badge/?version=latest)](https://docs.espressif.com/projects/espressif-esp-moonlight/zh_CN/latest/)
 
 | <img src="docs/_static/espressif-logo.svg" alt="espressif-logo" width="300" /> |
 | ------------------------------------------------------------ |
@@ -44,7 +45,5 @@ ESP-Moonlight 是乐鑫推出的基于 ESP32 开发的月球灯示例项目，�
 
 
 ## 文档
-
-[![Documentation Status](https://readthedocs.com/projects/espressif-esp-moonlight/badge/?version=latest)](https://docs.espressif.com/projects/espressif-esp-moonlight/zh_CN/latest/)
 
 [入门指南](https://docs.espressif.com/projects/espressif-esp-moonlight/zh_CN/latest/gettingstarted.html)
