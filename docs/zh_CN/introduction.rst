@@ -31,14 +31,14 @@ ESP-Moonlight 是乐鑫推出的基于 ESP32 开发的月球灯示例项目，�
 
 本项目使用的是 ESP32-Moonlight V2.0 开发板。
 
-.. figure:: ../_static/ESP32-Moonlight_front.png
+.. figure:: ../_static/ESP-Moonlight_front.png
     :alt: front
     :width: 600
     :align: center
 
     ESP32-Moonlight 开发板正面
 
-.. figure:: ../_static/ESP32-Moonlight_back.png
+.. figure:: ../_static/ESP-Moonlight_back.png
     :alt: back
     :width: 600
     :align: center
