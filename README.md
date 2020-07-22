@@ -2,6 +2,8 @@
 
 [![Documentation Status](https://readthedocs.com/projects/espressif-esp-moonlight/badge/?version=latest)](https://docs.espressif.com/projects/espressif-esp-moonlight/zh_CN/latest/)
 
+中文文档: [https://docs.espressif.com/projects/espressif-esp-moonlight/zh_CN/latest/introduction.html](https://docs.espressif.com/projects/espressif-esp-moonlight/zh_CN/latest/introduction.html)
+
 | <img src="docs/_static/espressif-logo.svg" alt="espressif-logo" width="300" /> |
 | ------------------------------------------------------------ |
 | <img src="docs/_static/cover_page_pdf.jpg" alt="cover_page_pdf" width="300" /> |
@@ -43,7 +45,17 @@ ESP-Moonlight 是乐鑫推出的基于 ESP32 开发的月球灯示例项目，�
   - 支持语音控制
 
 
+## 视频教程
 
-## 文档
+- [ESP-IDF 环境搭建 Windows](https://www.bilibili.com/video/BV1Ke411s7Go)
 
-[入门指南](https://docs.espressif.com/projects/espressif-esp-moonlight/zh_CN/latest/gettingstarted.html)
+- [ESP-IDF 环境搭建 Mac OS](https://www.bilibili.com/video/BV17K4y1k7Ht)
+
+- [ESP32 驱动 LED RGB5050 及震动控制](https://www.bilibili.com/video/BV1JK411s7ZA)
+
+- [ESP32 驱动 LED WS2812](https://www.bilibili.com/video/BV1jC4y1W7CZ)
+
+- [ESP32 进行 Wi-Fi 连接、配网及手机控制 LED 灯](https://www.bilibili.com/video/BV1nQ4y1N7ZC)
+
+- [ESP32 OTA(Over The Air) 升级介绍](https://www.bilibili.com/video/BV155411Y7VJ)
+
