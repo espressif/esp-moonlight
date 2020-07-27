@@ -126,6 +126,8 @@ NVS 经过专门设计，不但可以防止设备断电带来的数据损坏影�
 
     微信小程序二维码
 
+微信小程序的源码可在 `https://github.com/EspressifApps/Moonlight <https://github.com/EspressifApps/Moonlight>`_ 查看。
+
 - 上电等待 10 秒的时间用之前保存的 Wi-Fi 信息进行自动连接，此时 LED 是黄色呼吸灯状态。
 
 - 如果自动连接成功则 LED 直接高亮并开始颜色渐变，配网结束；如果未连接则启动 BluFi 并保持呼吸灯状态。 
