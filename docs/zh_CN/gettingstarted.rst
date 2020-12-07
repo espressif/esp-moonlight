@@ -89,12 +89,12 @@ ESP-Moonlight 库包含了一系列由 ESP-IDF 构建的应用程序，我们将
 
     $ git clone --recursive https://github.com/espressif/esp-moonlight
 
-我们将构建一个可用的固件，因此选择使用 ESP-IDF 稳定版本进行开发。目前 ESP-Moonlight 使用的是 ESP-IDF V4.0 稳定版本，请切换到这一版本：
+我们将构建一个可用的固件，因此选择使用 ESP-IDF 稳定版本进行开发。目前 ESP-Moonlight 使用的是 ESP-IDF V4.0.1 稳定版本，使用如下命令切换 esp-idf 到 v4.0.1 的 tag：
 
 .. code:: shell
 
     $ cd esp-idf
-    $ git checkout -b release/v4.0 remotes/origin/release/v4.0
+    $ git checkout -b v4.0.1 v4.0.1
     $ git submodule update --recursive
 
 .. note::

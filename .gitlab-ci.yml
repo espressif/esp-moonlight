@@ -19,7 +19,7 @@ before_script:
   - echo -e "Host gitlab.espressif.cn\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
   - git --version
   - git submodule update --init --recursive
-  - git clone --recursive --branch release/v4.0 --depth 1 $GITLAB_SSH_SERVER/espressif/esp-idf.git
+  - git clone --recursive --branch v4.0.1 --depth 1 $GITLAB_SSH_SERVER/espressif/esp-idf.git
   - export PATH="$IDF_PATH/tools:$PATH"
   - cd esp-idf
   - source tools/ci/setup_python.sh
