@@ -14,7 +14,7 @@ ESP-Moonlight 支持政策
 +---------------+-------------------+--------+-----------------+
 | ESP-Moonlight | Dependent ESP-IDF | Target |  Support State  |
 +===============+===================+========+=================+
-| master        | release/v4.0      | ESP32  | Limiter Support |
+| master        | release/v4.0      | ESP32  | Limited Support |
 +---------------+-------------------+--------+-----------------+
 
 快速入门
