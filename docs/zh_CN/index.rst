@@ -3,6 +3,23 @@ ESP-Moonlight
 
 :link_to_translation:`en:[English]`
 
+ESP-Moonlight 支持政策
+-----------------------
+
+自 2022 年 12 月起，我们仅提供有限的支持，但是 Pull Request 仍然是被欢迎的！
+
+支持的版本和芯片
+-----------------
+
++---------------+-------------------+--------+-----------------+
+| ESP-Moonlight | Dependent ESP-IDF | Target |  Support State  |
++===============+===================+========+=================+
+| master        | release/v4.0      | ESP32  | Limiter Support |
++---------------+-------------------+--------+-----------------+
+
+快速入门
+--------
+
 .. role:: bolditalics
    :class: bolditalics
           
