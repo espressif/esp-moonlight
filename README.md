@@ -7,7 +7,7 @@
 
 | ESP-Moonlight | Dependent ESP-IDF | Target |  Support State  |
 | ------------- | ----------------- | ------ | --------------- |
-| master        | release/v4.0      | ESP32  | Limiter Support |
+| master        | release/v4.0      | ESP32  | Limited Support |
 
 # ESP-MoonLight
 
