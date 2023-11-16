@@ -12,10 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include "sdkconfig.h"
-
 #pragma once
+#include "sdkconfig.h"
+#include "esp_log.h"
+#include "esp_err.h"
+#include "esp_random.h"
+#include "esp_check.h"
+#include "nvs_flash.h"
+#include "led_rgb.h"
+#include "iot_button.h"
+#include "sensor.h"
 
 #ifdef CONFIG_IDF_TARGET_ESP32S2
 
@@ -43,6 +49,26 @@
 #define BOARD_GPIO_BAT_CHRG   34
 #define BOARD_GPIO_BAT_STBY   35
 
-#endif 
+#elif defined CONFIG_IDF_TARGET_ESP32S3
+
+#define BOARD_BAT_ADC_CHANNEL 7
+#define BOARD_GPIO_SENSOR_INT 9
+#define BOARD_DMIC_I2S_SCK    39
+#define BOARD_DMIC_I2S_WS     38
+#define BOARD_DMIC_I2S_SDO    40
+#define BOARD_GPIO_LED_R      1
+#define BOARD_GPIO_LED_G      2
+#define BOARD_GPIO_LED_B      16
+#define BOARD_GPIO_BAT_CHRG   -1
+#define BOARD_GPIO_BAT_STBY   -1
+
+#endif
 
 #define BOARD_GPIO_BUTTON      0  /**< button gpio number */
+
+led_rgb_t *board_rgb_init(void);
+void board_led_rgb_ctrl(led_rgb_t *led_rgb, uint8_t led_mode);
+void breath_light_task(void *arg);
+button_handle_t board_button_init(void);
+esp_err_t board_sensor_init(vibration_isr_t fn);
+esp_err_t board_nvs_flash_init(void);

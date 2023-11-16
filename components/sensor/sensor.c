@@ -12,131 +12,104 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
+#include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "freertos/timers.h"
-#include "esp_err.h"
 #include "driver/gpio.h"
+#include "esp_err.h"
 #include "esp_log.h"
+#include "esp_timer.h"
+#include "esp_idf_version.h"
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+#else
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#endif
 
+#include "soc/soc_caps.h"
 #include "sensor.h"
 
 static const char *TAG = "sensor";
-
-static xQueueHandle g_gpio_evt_queue  = NULL;
+static QueueHandle_t g_gpio_evt_queue  = NULL;
 static vibration_isr_t g_vibration_fn = NULL;
 static void *g_vibration_fn_arg       = NULL;
-
-#define DEFAULT_VREF    1100        /**< Use adc2_vref_to_gpio() to obtain a better estimate */
-#define NO_OF_SAMPLES   16          /**< Multisampling */
-static int32_t g_adc_ch_bat = 0;
+static int32_t g_is_enable_vibration = 1;
 static int32_t g_bat_chrg_num = 0;
 static int32_t g_bat_stby_num = 0;
-static esp_adc_cal_characteristics_t *g_adc_chars;
 static int32_t g_vol_bat = 0;
-static int32_t g_is_enable_vibration = 1;
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 
-static void periodic_timer_callback(void *arg)
+#if CONFIG_ESP32_MOONLIGHT_BOARD
+    #define BATTERY_ADC_CHAN          0
+#elif CONFIG_ESP32_S3_MOONLIGHT_BOARD
+    #define BATTERY_ADC_CHAN          7
+#endif
+
+adc_oneshot_unit_handle_t battery_adc_handle = NULL;
+adc_cali_handle_t battery_adc_cali_handle = NULL;
+bool do_calibration = 0;
+
+static bool example_adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t *out_handle)
 {
-    static int8_t last_level = 1;
-    int8_t level;
-    int32_t gpio_num = (int32_t)arg;
+    adc_cali_handle_t handle = NULL;
+    esp_err_t ret = ESP_FAIL;
+    bool calibrated = false;
 
-    level = gpio_get_level(gpio_num);
-
-    /**< Find a falling edge */
-    if ((1 == g_is_enable_vibration) && (0 == level) && (1 == last_level)) {
-        g_is_enable_vibration = 0;
-        xQueueOverwrite(g_gpio_evt_queue, &gpio_num);
-    }
-
-    last_level = level;
-}
-
-esp_err_t sensor_vibration_triggered_register(vibration_isr_t fn, void *arg)
-{
-    g_vibration_fn = fn;
-    g_vibration_fn_arg = arg;
-    return ESP_OK;
-}
-
-static void sensor_vibration_task(void *arg)
-{
-    int32_t gpio_num = (int32_t)arg;
-
-    while (1) {
-        uint32_t io_num;
-        uint8_t level;
-
-        if (xQueueReceive(g_gpio_evt_queue, &io_num, portMAX_DELAY)) {
-            level = gpio_get_level(io_num);
-            ESP_LOGI(TAG, "GPIO[%d] intr, val: %d\n", io_num, level);
-
-            if (io_num == gpio_num) {
-                /**
-                 * remove isr handler for gpio number.
-                 * Discard interrupts generated during the delay period
-                 */
-
-                if (NULL != g_vibration_fn) {
-                    g_vibration_fn(g_vibration_fn_arg);
-                }
-
-                vTaskDelay(pdMS_TO_TICKS(250));
-                g_is_enable_vibration = 1;
-            }
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+    if (!calibrated) {
+        ESP_LOGI(TAG, "calibration scheme version is %s", "Curve Fitting");
+        adc_cali_curve_fitting_config_t cali_config = {
+            .unit_id = unit,
+            .atten = atten,
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+        };
+        ret = adc_cali_create_scheme_curve_fitting(&cali_config, &handle);
+        if (ret == ESP_OK) {
+            calibrated = true;
         }
     }
-}
+#endif
 
-esp_err_t sensor_vibration_init(int32_t gpio_num)
-{
-    gpio_config_t io_conf = {0};
+#if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+    if (!calibrated) {
+        ESP_LOGI(TAG, "calibration scheme version is %s", "Line Fitting");
+        adc_cali_line_fitting_config_t cali_config = {
+            .unit_id = unit,
+            .atten = atten,
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+        };
+        ret = adc_cali_create_scheme_line_fitting(&cali_config, &handle);
+        if (ret == ESP_OK) {
+            calibrated = true;
+        }
+    }
+#endif
 
-    /**< interrupt of rising edge */
-    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
-    /**< bit mask of the pins */
-    io_conf.pin_bit_mask = (((uint64_t) 1) << gpio_num);
-    /**< set as input mode */
-    io_conf.mode = GPIO_MODE_INPUT;
-    /**< enable pull-up mode */
-    io_conf.pull_up_en = 1;
-    gpio_config(&io_conf);
-
-    /**< create a queue to handle gpio event from isr */
-    g_gpio_evt_queue = xQueueCreate(1, sizeof(uint32_t));
-
-    if (g_gpio_evt_queue == NULL) {
-        return ESP_FAIL;
+    *out_handle = handle;
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "Calibration Success");
+    } else if (ret == ESP_ERR_NOT_SUPPORTED || !calibrated) {
+        ESP_LOGW(TAG, "eFuse not burnt, skip software calibration");
+    } else {
+        ESP_LOGE(TAG, "Invalid arg or no memory");
     }
 
-    /**< install gpio isr service */
-    esp_timer_create_args_t periodic_timer_args = {
-        .callback = &periodic_timer_callback,
-        .arg = (void *)gpio_num,
-        /* name is optional, but may help identify the timer when debugging */
-        .name = "periodic"
-    };
-
-    esp_timer_handle_t periodic_timer;
-    ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
-    /* Start the timers */
-    ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, 5000));
-
-    xTaskCreate(sensor_vibration_task, "vibration", 1024 * 2, (void *)gpio_num, 3, NULL);
-
-    return ESP_OK;
+    return calibrated;
 }
 
-
+#else
+#define DEFAULT_VREF    1100        /**< Use adc2_vref_to_gpio() to obtain a better estimate */
+#define NO_OF_SAMPLES   16          /**< Multisampling */
+static esp_adc_cal_characteristics_t *g_adc_chars;
+static int32_t g_adc_ch_bat = 0;
 
 static void adc_check_efuse()
 {
@@ -166,8 +139,19 @@ static void print_char_val_type(esp_adc_cal_value_t val_type)
     }
 }
 
+#endif
+
 static void adc_get_voltage(int32_t *out_voltage)
 {
+    int voltage;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    static int adc_raw;
+    ESP_ERROR_CHECK(adc_oneshot_read(battery_adc_handle, BATTERY_ADC_CHAN, &adc_raw));
+    if (do_calibration) {
+        ESP_ERROR_CHECK(adc_cali_raw_to_voltage(battery_adc_cali_handle, adc_raw, &voltage));
+        *out_voltage = voltage;
+    }
+#else
     static uint32_t sample_index = 0;
     static uint16_t filter_buf[NO_OF_SAMPLES] = {0};
 
@@ -186,8 +170,9 @@ static void adc_get_voltage(int32_t *out_voltage)
 
     sum /= NO_OF_SAMPLES;
     /**< Convert adc_reading to voltage in mV */
-    uint32_t voltage = esp_adc_cal_raw_to_voltage(sum, g_adc_chars);
+    voltage = esp_adc_cal_raw_to_voltage(sum, g_adc_chars);
     *out_voltage = voltage;
+#endif
 }
 
 static void adc_proid_sample(TimerHandle_t xTimer)
@@ -240,6 +225,98 @@ esp_err_t sensor_battery_get_info_simple(int32_t *level, chrg_state_t *state)
     return ESP_OK;
 }
 
+static void sensor_vibration_task(void *arg)
+{
+    int32_t gpio_num = (int32_t)arg;
+
+    while (1) {
+        int32_t io_num;
+        uint8_t level;
+
+        if (xQueueReceive(g_gpio_evt_queue, &io_num, portMAX_DELAY)) {
+            level = gpio_get_level(io_num);
+            ESP_LOGI(TAG, "GPIO[%"PRId32"] intr, val: %d\n", io_num, level);
+
+            if (io_num == gpio_num) {
+                /**
+                 * remove isr handler for gpio number.
+                 * Discard interrupts generated during the delay period
+                 */
+
+                if (NULL != g_vibration_fn) {
+                    g_vibration_fn(g_vibration_fn_arg);
+                }
+
+                vTaskDelay(pdMS_TO_TICKS(250));
+                g_is_enable_vibration = 1;
+            }
+        }
+    }
+}
+
+static void periodic_timer_callback(void *arg)
+{
+    static int8_t last_level = 1;
+    int8_t level;
+    int32_t gpio_num = (int32_t)arg;
+
+    level = gpio_get_level(gpio_num);
+
+    /**< Find a falling edge */
+    if ((1 == g_is_enable_vibration) && (0 == level) && (1 == last_level)) {
+        g_is_enable_vibration = 0;
+        xQueueOverwrite(g_gpio_evt_queue, &gpio_num);
+    }
+
+    last_level = level;
+}
+
+esp_err_t sensor_vibration_triggered_register(vibration_isr_t fn, void *arg)
+{
+    g_vibration_fn = fn;
+    g_vibration_fn_arg = arg;
+    return ESP_OK;
+}
+
+esp_err_t sensor_vibration_init(int32_t gpio_num)
+{
+    gpio_config_t io_conf = {0};
+
+    /**< interrupt of rising edge */
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    /**< bit mask of the pins */
+    io_conf.pin_bit_mask = (((uint64_t) 1) << gpio_num);
+    /**< set as input mode */
+    io_conf.mode = GPIO_MODE_INPUT;
+    /**< enable pull-up mode */
+    io_conf.pull_up_en = 1;
+    gpio_config(&io_conf);
+
+    /**< create a queue to handle gpio event from isr */
+    g_gpio_evt_queue = xQueueCreate(1, sizeof(uint32_t));
+
+    if (g_gpio_evt_queue == NULL) {
+        return ESP_FAIL;
+    }
+
+    /**< install gpio isr service */
+    esp_timer_create_args_t periodic_timer_args = {
+        .callback = &periodic_timer_callback,
+        .arg = (void *)gpio_num,
+        /* name is optional, but may help identify the timer when debugging */
+        .name = "periodic"
+    };
+
+    esp_timer_handle_t periodic_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
+    /* Start the timers */
+    ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, 5000));
+
+    xTaskCreate(sensor_vibration_task, "vibration", 1024 * 2, (void *)gpio_num, 3, NULL);
+
+    return ESP_OK;
+}
+
 static void sensor_battery_task(void *arg)
 {
     static TimerHandle_t tmr;
@@ -254,17 +331,32 @@ static void sensor_battery_task(void *arg)
     }
 
     while (1) {
-        ESP_LOGI(TAG, "battery voltage: %dmv", g_vol_bat);
+        ESP_LOGI(TAG, "battery voltage: %"PRId32"mv", g_vol_bat);
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
 
 esp_err_t sensor_battery_init(int32_t adc_channel, int32_t chrg_num, int32_t stby_num)
 {
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    adc_oneshot_unit_init_cfg_t battery_adc_init_config = {
+        .unit_id = ADC_UNIT_1,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&battery_adc_init_config, &battery_adc_handle));
+
+    //-------------ADC1 Config---------------//
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .atten = ADC_ATTEN_DB_11,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(battery_adc_handle, BATTERY_ADC_CHAN, &config));
+
+    //-------------ADC1 Calibration Init---------------//
+    do_calibration = example_adc_calibration_init(ADC_UNIT_1, ADC_ATTEN_DB_11, &battery_adc_cali_handle);
+#else
     g_adc_ch_bat = adc_channel;
     g_bat_chrg_num = chrg_num;
     g_bat_stby_num = stby_num;
-
     /**< Check if Two Point or Vref are burned into eFuse */
     adc_check_efuse();
 
@@ -277,15 +369,26 @@ esp_err_t sensor_battery_init(int32_t adc_channel, int32_t chrg_num, int32_t stb
     esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, g_adc_chars);
     print_char_val_type(val_type);
 
-    /**< Configure GPIO for read charge status */
-    gpio_config_t io_conf = {0};
-    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
-    io_conf.pin_bit_mask = (((uint64_t) 1) << chrg_num) | (((uint64_t) 1) << stby_num);
-    io_conf.mode = GPIO_MODE_INPUT;
-    gpio_config(&io_conf);
+#endif
+
+    /**< Configure GPIO for read battery voltage */
+    if (chrg_num != GPIO_NUM_NC) {
+        gpio_config_t io_conf = {0};
+        io_conf.intr_type = GPIO_INTR_DISABLE;
+        io_conf.pin_bit_mask = (((uint64_t) 1) << chrg_num);
+        io_conf.mode = GPIO_MODE_INPUT;
+        gpio_config(&io_conf);
+    }
+
+    if (stby_num != GPIO_NUM_NC) {
+        gpio_config_t io_conf = {0};
+        io_conf.intr_type = GPIO_INTR_DISABLE;
+        io_conf.pin_bit_mask = (((uint64_t) 1) << stby_num);
+        io_conf.mode = GPIO_MODE_INPUT;
+        gpio_config(&io_conf);
+    }
 
     xTaskCreate(sensor_battery_task, "battery", 1024 * 2, NULL, 3, NULL);
-
     return ESP_OK;
 }
 

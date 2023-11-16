@@ -6,23 +6,23 @@ ESP-Moonlight
 ESP-Moonlight Support Policy
 -----------------------------
 
-From December 2022, we will offer limited support on this project, but Pull Request is still welcomed!
+From December 2023, we will offer limited support on this project, but Pull Request is still welcomed!
 
 Supported versions and chips
 -----------------------------
 
-+---------------+-------------------+--------+-----------------+
-| ESP-Moonlight | Dependent ESP-IDF | Target |  Support State  |
-+===============+===================+========+=================+
-| master        | release/v4.0      | ESP32  | Limited Support |
-+---------------+-------------------+--------+-----------------+
++---------------+-------------------+---------------+-----------------+
+| ESP-Moonlight | Dependent ESP-IDF |    Target     |  Support State  |
++===============+===================+===============+=================+
+| master        | >=release/v4.4    | ESP32 ESP32S3 | Limited Support |
++---------------+-------------------+---------------+-----------------+
 
 Get Started
 ------------
 
 .. role:: bolditalics
    :class: bolditalics
-          
+
 
 | **Building Products with ESP32** :bolditalics:`fast`: MoonLight
 

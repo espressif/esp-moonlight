@@ -20,11 +20,12 @@
 #include "freertos/event_groups.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
-#include "esp_event_loop.h"
+#include "esp_event.h"
 #include "esp_log.h"
+#include "esp_random.h"
 #include "nvs_flash.h"
 #include "esp_bt.h"
-
+#include "esp_idf_version.h"
 #include "esp_blufi_api.h"
 #include "esp_bt_defs.h"
 #include "esp_gap_ble_api.h"
@@ -122,8 +123,14 @@ void blufi_dh_negotiate_data_handler(uint8_t *data, int len, uint8_t **output_da
 
             free(blufi_sec->dh_param);
             blufi_sec->dh_param = NULL;
-            ret = mbedtls_dhm_make_public(&blufi_sec->dhm, (int) mbedtls_mpi_size(&blufi_sec->dhm.P), blufi_sec->self_public_key, blufi_sec->dhm.len, myrand, NULL);
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+            const int dhm_len = mbedtls_dhm_get_len(&blufi_sec->dhm);
+            ret = mbedtls_dhm_make_public(&blufi_sec->dhm, dhm_len, blufi_sec->self_public_key, dhm_len, myrand, NULL);
+#else
+            ret = mbedtls_dhm_make_public(&blufi_sec->dhm, (int) mbedtls_mpi_size(&blufi_sec->dhm.P), blufi_sec->self_public_key, blufi_sec->dhm.len, myrand, NULL);
+#endif
+            
             if (ret) {
                 BLUFI_ERROR("%s make public failed %d\n", __func__, ret);
                 btc_blufi_report_error(ESP_BLUFI_MAKE_PUBLIC_ERROR);
@@ -142,7 +149,13 @@ void blufi_dh_negotiate_data_handler(uint8_t *data, int len, uint8_t **output_da
 
             /* alloc output data */
             *output_data = &blufi_sec->self_public_key[0];
+            
+            
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+            *output_len = dhm_len;
+#else
             *output_len = blufi_sec->dhm.len;
+#endif
             *need_free = false;
 
         }

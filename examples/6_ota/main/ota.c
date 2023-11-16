@@ -9,8 +9,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
+#include "esp_idf_version.h"
 #include "esp_event.h"
-#include "esp_event_loop.h"
+#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_http_client.h"
@@ -54,7 +55,14 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     case HTTP_EVENT_DISCONNECTED:
         ESP_LOGD(TAG, "HTTP_EVENT_DISCONNECTED");
         break;
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    case HTTP_EVENT_REDIRECT:
+        ESP_LOGD(TAG, "HTTP_EVENT_REDIRECT");
+        break;
+#endif
     }
+    
     return ESP_OK;
 }
 
@@ -70,7 +78,14 @@ esp_err_t ota_start(const char *url)
     config.skip_cert_common_name_check = true;
 #endif
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    esp_https_ota_config_t http_ota_config = {
+        .http_config = &config,
+    };
+    esp_err_t ret = esp_https_ota(&http_ota_config);
+#else
     esp_err_t ret = esp_https_ota(&config);
+#endif
     if (ret == ESP_OK) {
         esp_restart();
     } else {
