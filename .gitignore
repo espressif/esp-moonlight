@@ -20,3 +20,9 @@ docs/*/xml_in/
 docs/*/man/
 docs/*/*.pyc
 docs/doxygen_sqlite3.db
+
+# lock files for examples and components
+dependencies.lock
+
+# managed_components for examples
+managed_components

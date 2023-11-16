@@ -1,0 +1,10 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/button: "^3.0.1"
+  led_rgb:
+    override_path: ../led_rgb
+  sensor:
+    override_path: ../sensor
+  ## Required IDF version
+  idf:
+    version: ">=4.1.0"

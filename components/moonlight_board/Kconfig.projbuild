@@ -1,0 +1,13 @@
+menu "SELECT BOARD"
+    config ESP32_MOONLIGHT_BOARD
+        bool "Select ESP32_MOONLIGHT_BOARD"
+        default "y"    if IDF_TARGET_ESP32
+        help
+            Select ESP32_MOONLIGHT_BOARD.
+
+    config ESP32_S3_MOONLIGHT_BOARD
+        bool "Select ESP32_S3_MOONLIGHT_BOARD"
+        default "y"    if IDF_TARGET_ESP32S3
+        help
+            Select ESP32_S3_MOONLIGHT_BOARD.
+endmenu

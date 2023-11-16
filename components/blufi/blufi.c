@@ -12,25 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
-#include "esp_system.h"
+#include "blufi.h"
 #include "esp_wifi.h"
-#include "esp_event_loop.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
 #include "esp_bt.h"
-
-#include "esp_blufi_api.h"
+#include "esp_mac.h"
+#include "esp_blufi.h"
 #include "esp_bt_defs.h"
-#include "esp_gap_ble_api.h"
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
-#include "blufi.h"
+#include "nvs_flash.h"
+
 
 static void example_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_param_t *param);
 
@@ -94,18 +90,103 @@ recv_handle_t g_recv_handle = NULL;
 /* connect infor*/
 static uint8_t server_if;
 static uint16_t conn_id;
-static esp_err_t example_net_event_handler(void *ctx, system_event_t *event)
+static void example_net_event_handler(void *ctx, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
     wifi_mode_t mode;
+    if (event_base == WIFI_EVENT) {
+        switch (event_id) {
+            case WIFI_EVENT_STA_START:
+                esp_wifi_connect();
+                break;
 
-    switch (event->event_id) {
-        case SYSTEM_EVENT_STA_START:
-            esp_wifi_connect();
-            break;
+            case WIFI_EVENT_STA_CONNECTED:
+                gl_sta_connected = true;
+                wifi_event_sta_connected_t *event = (wifi_event_sta_connected_t*) event_data;
+                memcpy(gl_sta_bssid, event->bssid, 6);
+                memcpy(gl_sta_ssid, event->ssid, event->ssid_len);
+                gl_sta_ssid_len = event->ssid_len;
+                break;
 
-        case SYSTEM_EVENT_STA_GOT_IP: {
+            case WIFI_EVENT_STA_DISCONNECTED:
+                /* This is a workaround as ESP32 WiFi libs don't currently
+                auto-reassociate. */
+                gl_sta_connected = false;
+                memset(gl_sta_ssid, 0, 32);
+                memset(gl_sta_bssid, 0, 6);
+                gl_sta_ssid_len = 0;
+                esp_wifi_connect();
+                BLUFI_INFO("WiFi disconnected\n");
+                xEventGroupClearBits(s_wifi_event_group, CONNECTED_BIT);
+                break;
+
+            case WIFI_EVENT_AP_START:
+                esp_wifi_get_mode(&mode);
+
+                /* TODO: get config or information of softap, then set to report extra_info */
+                if (ble_is_connected == true) {
+                    if (gl_sta_connected) {
+                        esp_blufi_send_wifi_conn_report(mode, ESP_BLUFI_STA_CONN_SUCCESS, 0, NULL);
+                    } else {
+                        esp_blufi_send_wifi_conn_report(mode, ESP_BLUFI_STA_CONN_FAIL, 0, NULL);
+                    }
+                } else {
+                    BLUFI_INFO("BLUFI BLE is not connected yet\n");
+                }
+
+                break;
+
+            case WIFI_EVENT_SCAN_DONE: {
+                uint16_t apCount = 0;
+                esp_wifi_scan_get_ap_num(&apCount);
+
+                if (apCount == 0) {
+                    BLUFI_INFO("Nothing AP found");
+                    break;
+                }
+
+                wifi_ap_record_t *ap_list = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * apCount);
+
+                if (!ap_list) {
+                    BLUFI_ERROR("malloc error, ap_list is NULL");
+                    break;
+                }
+
+                ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&apCount, ap_list));
+                esp_blufi_ap_record_t *blufi_ap_list = (esp_blufi_ap_record_t *)malloc(apCount * sizeof(esp_blufi_ap_record_t));
+
+                if (!blufi_ap_list) {
+                    if (ap_list) {
+                        free(ap_list);
+                    }
+
+                    BLUFI_ERROR("malloc error, blufi_ap_list is NULL");
+                    break;
+                }
+
+                for (int i = 0; i < apCount; ++i) {
+                    blufi_ap_list[i].rssi = ap_list[i].rssi;
+                    memcpy(blufi_ap_list[i].ssid, ap_list[i].ssid, sizeof(ap_list[i].ssid));
+                }
+
+                if (ble_is_connected == true) {
+                    esp_blufi_send_wifi_list(apCount, blufi_ap_list);
+                } else {
+                    BLUFI_INFO("BLUFI BLE is not connected yet\n");
+                }
+
+                esp_wifi_scan_stop();
+                free(ap_list);
+                free(blufi_ap_list);
+                break;
+            }
+
+            default:
+                break;
+        }
+    } else if (event_base == IP_EVENT) {
+        switch (event_id) {
+        case IP_EVENT_STA_GOT_IP: {
             esp_blufi_extra_info_t info;
-
             xEventGroupSetBits(s_wifi_event_group, CONNECTED_BIT);
             esp_wifi_get_mode(&mode);
 
@@ -123,92 +204,10 @@ static esp_err_t example_net_event_handler(void *ctx, system_event_t *event)
 
             break;
         }
-
-        case SYSTEM_EVENT_STA_CONNECTED:
-            gl_sta_connected = true;
-            memcpy(gl_sta_bssid, event->event_info.connected.bssid, 6);
-            memcpy(gl_sta_ssid, event->event_info.connected.ssid, event->event_info.connected.ssid_len);
-            gl_sta_ssid_len = event->event_info.connected.ssid_len;
-            break;
-
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            /* This is a workaround as ESP32 WiFi libs don't currently
-               auto-reassociate. */
-            gl_sta_connected = false;
-            memset(gl_sta_ssid, 0, 32);
-            memset(gl_sta_bssid, 0, 6);
-            gl_sta_ssid_len = 0;
-            esp_wifi_connect();
-            BLUFI_INFO("WiFi disconnected\n");
-            xEventGroupClearBits(s_wifi_event_group, CONNECTED_BIT);
-            break;
-
-        case SYSTEM_EVENT_AP_START:
-            esp_wifi_get_mode(&mode);
-
-            /* TODO: get config or information of softap, then set to report extra_info */
-            if (ble_is_connected == true) {
-                if (gl_sta_connected) {
-                    esp_blufi_send_wifi_conn_report(mode, ESP_BLUFI_STA_CONN_SUCCESS, 0, NULL);
-                } else {
-                    esp_blufi_send_wifi_conn_report(mode, ESP_BLUFI_STA_CONN_FAIL, 0, NULL);
-                }
-            } else {
-                BLUFI_INFO("BLUFI BLE is not connected yet\n");
-            }
-
-            break;
-
-        case SYSTEM_EVENT_SCAN_DONE: {
-            uint16_t apCount = 0;
-            esp_wifi_scan_get_ap_num(&apCount);
-
-            if (apCount == 0) {
-                BLUFI_INFO("Nothing AP found");
-                break;
-            }
-
-            wifi_ap_record_t *ap_list = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * apCount);
-
-            if (!ap_list) {
-                BLUFI_ERROR("malloc error, ap_list is NULL");
-                break;
-            }
-
-            ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&apCount, ap_list));
-            esp_blufi_ap_record_t *blufi_ap_list = (esp_blufi_ap_record_t *)malloc(apCount * sizeof(esp_blufi_ap_record_t));
-
-            if (!blufi_ap_list) {
-                if (ap_list) {
-                    free(ap_list);
-                }
-
-                BLUFI_ERROR("malloc error, blufi_ap_list is NULL");
-                break;
-            }
-
-            for (int i = 0; i < apCount; ++i) {
-                blufi_ap_list[i].rssi = ap_list[i].rssi;
-                memcpy(blufi_ap_list[i].ssid, ap_list[i].ssid, sizeof(ap_list[i].ssid));
-            }
-
-            if (ble_is_connected == true) {
-                esp_blufi_send_wifi_list(apCount, blufi_ap_list);
-            } else {
-                BLUFI_INFO("BLUFI BLE is not connected yet\n");
-            }
-
-            esp_wifi_scan_stop();
-            free(ap_list);
-            free(blufi_ap_list);
-            break;
-        }
-
         default:
             break;
+        }
     }
-
-    return ESP_OK;
 }
 
 static esp_blufi_callbacks_t example_callbacks = {
@@ -390,7 +389,7 @@ static void example_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_para
         }
 
         case ESP_BLUFI_EVENT_RECV_CUSTOM_DATA:
-            BLUFI_INFO("Recv Custom Data %d\n", param->custom_data.data_len);
+            BLUFI_INFO("Recv Custom Data %"PRIu32"\n", param->custom_data.data_len);
             esp_log_buffer_hex("Custom Data", param->custom_data.data, param->custom_data.data_len);
             break;
 
@@ -496,7 +495,7 @@ esp_err_t blufi_start(void)
 esp_err_t blufi_wait_connection(TickType_t xTicksToWait)
 {
     xEventGroupWaitBits(s_wifi_event_group, CONNECTED_BIT, false, false, xTicksToWait);
-    
+
     return ESP_OK;
 }
 
@@ -517,9 +516,16 @@ esp_err_t blufi_stop(void)
 
 esp_err_t blufi_network_init(void)
 {
-    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_netif_init());
     s_wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK(esp_event_loop_init(example_net_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
+    assert(sta_netif);
+    esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
+    assert(ap_netif);
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &example_net_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &example_net_event_handler, NULL));
+
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -541,7 +547,7 @@ esp_err_t blufi_get_status(blufi_status_t *status)
     {
         *status |= BLUFI_STATUS_BT_CONNECTED;
     }
-    
+
     return ESP_OK;
 }
 
@@ -569,7 +575,7 @@ esp_err_t blufi_set_wifi_info(const char *ssid, const char *pswd)
     {
         return ESP_ERR_INVALID_ARG;
     }
-    
+
     strcpy((char*)sta_config.sta.ssid, ssid);
     strcpy((char*)sta_config.sta.password, pswd);
     esp_wifi_set_config(WIFI_IF_STA, &sta_config);

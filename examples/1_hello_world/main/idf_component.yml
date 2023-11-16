@@ -1,0 +1,7 @@
+## IDF Component Manager Manifest File
+dependencies:
+  moonlight_board:
+    override_path: ../../../components/moonlight_board
+  ## Required IDF version
+  idf:
+    version: ">=4.1.0"

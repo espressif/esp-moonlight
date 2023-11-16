@@ -10,12 +10,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
-#include "led_rgb.h"
+#include "esp_random.h"
 #include "app_speech_if.h"
 #include "board_moonlight.h"
-
-static const char *TAG = "moonlight";
 
 static led_rgb_t *g_leds = NULL;
 typedef struct {
@@ -30,37 +27,11 @@ static led_color_t led_color_wake_bk = {0};
 
 static TaskHandle_t g_breath_light_task_handle = NULL;
 
-
-static void breath_light_task(void *arg)
-{
-    uint8_t value = 0;
-    uint8_t dir = 0;
-
-    while (1) {
-        ESP_ERROR_CHECK(g_leds->set_hsv(g_leds, 120, 100, value));
-        vTaskDelay(pdMS_TO_TICKS(20));
-
-        if (dir) {
-            value--;
-
-            if (value < 20) {
-                dir = 0;
-            }
-        } else {
-            value++;
-
-            if (value >= 60) {
-                dir = 1;
-            }
-        }
-    }
-}
-
 static void sr_wake(void *arg)
 {
     g_leds->get_rgb(g_leds, &led_color_wake_bk.r, &led_color_wake_bk.g, &led_color_wake_bk.b);
     /**< Turn on the breathing light */
-    xTaskCreate(breath_light_task, "breath_light_task", 1024 * 2, NULL, configMAX_PRIORITIES - 1, &g_breath_light_task_handle);
+    xTaskCreate(breath_light_task, "breath_light_task", 1024 * 2, (void*)g_leds, configMAX_PRIORITIES - 1, &g_breath_light_task_handle);
 
 }
 
@@ -151,23 +122,9 @@ static void sr_cmd_exit(void *arg)
 void app_main(void)
 {
     /**< Initialize NVS */
-    esp_err_t ret = nvs_flash_init();
-
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-
-    ESP_ERROR_CHECK(ret);
-
+    ESP_ERROR_CHECK(board_nvs_flash_init());
     /**< configure led driver */
-    led_rgb_config_t rgb_config = LED_RGB_DEFAULT_CONFIG(BOARD_GPIO_LED_R, BOARD_GPIO_LED_G, BOARD_GPIO_LED_B);
-    g_leds = led_rgb_create(&rgb_config);
-
-    if (!g_leds) {
-        ESP_LOGE(TAG, "install LED driver failed");
-        return;
-    }
+    g_leds = board_rgb_init();
 
     speech_recognition_init();
 

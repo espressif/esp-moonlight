@@ -14,7 +14,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
+#include "esp_check.h"
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
@@ -22,10 +22,8 @@
 #include <lwip/netdb.h>
 #include "cJSON.h"
 
-#include "led_rgb.h"
 #include "board_moonlight.h"
 #include "blufi.h"
-#include "iot_button.h"
 
 static const char *TAG = "moonlight";
 static led_rgb_t *g_leds = NULL;
@@ -37,20 +35,18 @@ static TaskHandle_t g_breath_light_task_handle = NULL;
 #define PORT CONFIG_EXAMPLE_PORT
 
 
-static void button_press_3sec_cb(void *arg)
+static void button_press_3sec_cb(void *arg, void *data)
 {
     ESP_LOGW(TAG, "Restore factory settings");
     nvs_flash_erase();
     esp_restart();
 }
 
-static void configure_push_button(int gpio_num)
+static esp_err_t button_init(void)
 {
-    button_handle_t btn_handle = iot_button_create(gpio_num, 0);
-
-    if (btn_handle) {
-        iot_button_add_on_press_cb(btn_handle, 3, button_press_3sec_cb, NULL);
-    }
+    button_handle_t button = board_button_init();
+    esp_err_t ret = iot_button_register_cb(button, BUTTON_LONG_PRESS_START, button_press_3sec_cb, NULL);
+    return ret;
 }
 
 static void udp_server_task(void *pvParameters)
@@ -144,56 +140,17 @@ static void udp_server_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-
-static void breath_light_task(void *arg)
-{
-    uint8_t value = 0;
-    uint8_t dir = 0;
-
-    while (1) {
-        ESP_ERROR_CHECK(g_leds->set_hsv(g_leds, 60, 100, value));
-        vTaskDelay(pdMS_TO_TICKS(20));
-
-        if (dir) {
-            value--;
-
-            if (value < 8) {
-                dir = 0;
-            }
-        } else {
-            value++;
-
-            if (value >= 80) {
-                dir = 1;
-            }
-        }
-    }
-}
-
-
 void app_main(void)
 {
     /**< Initialize NVS */
-    esp_err_t ret = nvs_flash_init();
-
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-
-    ESP_ERROR_CHECK(ret);
-    configure_push_button(BOARD_GPIO_BUTTON);
-
+    ESP_ERROR_CHECK(board_nvs_flash_init());
+    /**< Initialize button */
+    ESP_ERROR_CHECK(button_init());
     /**< configure led driver */
-    led_rgb_config_t rgb_config = LED_RGB_DEFAULT_CONFIG(BOARD_GPIO_LED_R, BOARD_GPIO_LED_G, BOARD_GPIO_LED_B);
-    g_leds = led_rgb_create(&rgb_config);
-
-    if (!g_leds) {
-        ESP_LOGE(TAG, "install LED driver failed");
-    }
+    g_leds = board_rgb_init();
 
     /**< Turn on the breathing light */
-    xTaskCreatePinnedToCore(breath_light_task, "breath_light_task", 1024 * 3, NULL, 5, &g_breath_light_task_handle, 1);
+    xTaskCreatePinnedToCore(breath_light_task, "breath_light_task", 1024 * 3, (void*)g_leds, 5, &g_breath_light_task_handle, 1);
 
     /**< Initialize the BluFi */
     blufi_network_init();
@@ -214,6 +171,6 @@ void app_main(void)
     vTaskDelete(g_breath_light_task_handle);
 
     /**< It's connected. It's time to change the light to white */
-    ESP_ERROR_CHECK(g_leds->set_rgb(g_leds, 120, 120, 120));
+    ESP_ERROR_CHECK(g_leds->set_rgb(g_leds, 128, 128, 128));
     xTaskCreatePinnedToCore(udp_server_task, "udp_server_task", 1024 * 5, NULL, 5, NULL, 1);
 }

@@ -11,16 +11,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "driver/ledc.h"
-#include "led_rgb.h"
+#include "esp_check.h"
 #include "board_moonlight.h"
-#include "iot_button.h"
-#include "sensor.h"
 
 static const char *TAG = "moonlight";
 static led_rgb_t *g_leds = NULL;
-static uint8_t g_led_mode = 0; /**< led mode  0:color fade 1:fixed color */
-
+uint8_t g_led_mode = 0; /**< led mode  0:color fade 1:fixed color */
 
 static void vibration_handle(void *arg)
 {
@@ -39,7 +35,7 @@ static void vibration_handle(void *arg)
     ESP_ERROR_CHECK(g_leds->set_hsv(g_leds, h, s, 100));
 }
 
-static void button_press_cb(void *arg)
+static void button_press_down_cb(void *arg, void *data)
 {
     if (g_led_mode) {
         g_led_mode = 0;
@@ -50,47 +46,25 @@ static void button_press_cb(void *arg)
     ESP_LOGI(TAG, "Set the light mode to %d", g_led_mode);
 }
 
-static void configure_push_button(int gpio_num)
+static esp_err_t button_init(void)
 {
-    button_handle_t btn_handle = iot_button_create(gpio_num, 0);
-
-    if (btn_handle) {
-        iot_button_set_evt_cb(btn_handle, BUTTON_CB_TAP, button_press_cb, NULL);
-    }
+    button_handle_t button = board_button_init();
+    esp_err_t ret = iot_button_register_cb(button, BUTTON_PRESS_DOWN, button_press_down_cb, NULL);
+    return ret;
 }
 
 void app_main(void)
 {
-    uint32_t hue = 0;
-
     /**< configure led driver */
-    led_rgb_config_t rgb_config = LED_RGB_DEFAULT_CONFIG(BOARD_GPIO_LED_R, BOARD_GPIO_LED_G, BOARD_GPIO_LED_B);
-    g_leds = led_rgb_create(&rgb_config);
-
-    if (!g_leds) {
-        ESP_LOGE(TAG, "install LED driver failed");
-    }
+    g_leds = board_rgb_init();
 
     /**< Configure button and sensors */
-    configure_push_button(BOARD_GPIO_BUTTON);
-    sensor_battery_init(BOARD_BAT_ADC_CHANNEL, BOARD_GPIO_BAT_CHRG, BOARD_GPIO_BAT_STBY);
-    sensor_vibration_init(BOARD_GPIO_SENSOR_INT);
-    sensor_vibration_triggered_register(vibration_handle, NULL);
+    ESP_ERROR_CHECK(button_init());
+    ESP_ERROR_CHECK(board_sensor_init(vibration_handle));
 
     ESP_LOGI(TAG, "Color fade start");
 
     while (true) {
-        if (!g_led_mode) {
-            /**< Write HSV values to LED */
-            ESP_ERROR_CHECK(g_leds->set_hsv(g_leds, hue, 100, 100));
-            vTaskDelay(pdMS_TO_TICKS(30));
-            hue++;
-
-            if (hue > 360) {/**< The maximum value of hue in HSV color space is 360 */
-                hue = 0;
-            }
-        } else {
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
+        board_led_rgb_ctrl(g_leds, g_led_mode);
     }
 }

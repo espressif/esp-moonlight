@@ -6,7 +6,6 @@ variables:
   BATCH_BUILD: "1"
   V: "0"
   MAKEFLAGS: "-j5 --no-keep-going"
-  IDF_PATH: "$CI_PROJECT_DIR/esp-idf"
   IDF_CI_BUILD: "1"
 
 before_script:
@@ -19,82 +18,53 @@ before_script:
   - echo -e "Host gitlab.espressif.cn\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
   - git --version
   - git submodule update --init --recursive
-  - git clone --recursive --branch v4.0.1 --depth 1 $GITLAB_SSH_SERVER/espressif/esp-idf.git
-  - export PATH="$IDF_PATH/tools:$PATH"
-  - cd esp-idf
-  - source tools/ci/setup_python.sh
-  - source tools/ci/configure_ci_environment.sh
-  - tools/idf_tools.py --non-interactive install && eval "$(tools/idf_tools.py --non-interactive export)" || exit 1
-  - cd ..
 
 .build_examples_template: &build_examples_template
   stage: build
-  image: $CI_DOCKER_REGISTRY/esp32-ci-env$BOT_DOCKER_IMAGE_TAG
   tags:
     - build
-  # Artifacts are not used temporarily
-  # artifacts:
-  #   when: always
-  #   paths:
-  #     - $LOG_PATH
-  #   expire_in: 1 week
-  # variables:
-  #   LOG_PATH: "$CI_PROJECT_DIR/log_examples"
-
-build_demo_make:
-  <<: *build_examples_template
+  image: ${IMAGE}
+  artifacts:
+    when: always
+    paths:
+      - "**/build*/size.json"
+      - "**/build*/build_log.txt"
+      - "**/build*/*.bin"
+      # upload to s3 server to save the artifacts size
+      - "**/build*/*.map"
+      - "**/build*/*.elf"
+      - "**/build*/flasher_args.json"
+      - "**/build*/flash_project_args"
+      - "**/build*/config/sdkconfig.json"
+      - "**/build*/bootloader/*.bin"
+      - "**/build*/bootloader/*.elf"
+      - "**/build*/partition_table/*.bin"
+      - size_info.txt
+    expire_in: 1 week
+  variables:
+    # Enable ccache for all build jobs. See configure_ci_environment.sh for more ccache related settings.
+    IDF_CCACHE_ENABLE: "1"
+    BATCH_BUILD: "1"
+    V: "0"
+    WARNING_STR: ""
+    IDF_CI_BUILD: "1"
+    # By configuring this macro, you can append the compiled configuration file.
+    # For example, using "sdkconf.etc=default" specifies the default sdkconfig file.
+    EXAMPLE_CONFIG: "="
   script:
-    - cd examples/1_hello_world
-    - make defconfig && make -j5
-    - cd ../../
-    - cd examples/2_drivers
-    - make defconfig && make -j5
-    - cd ../../
-    - cd examples/3_wifi_connection
-    - make defconfig && make -j5
-    - cd ../../
-    - cd examples/4_network_config
-    - make defconfig && make -j5
-    - cd ../../
-    - cd examples/5_app_control
-    - make defconfig && make -j5
-    - cd ../../
-    - cd examples/6_ota
-    - make defconfig && make -j5
-    - cd ../../
-    - cd examples/7_recognition
-    - make defconfig && make -j5
+    - pip install --upgrade idf-component-manager
+    - pip install idf_build_apps
+    - python tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t all --default-build-targets esp32,esp32s3 -vv
 
-build_demo_cmake:
-  <<: *build_examples_template
-  script:
-    - cd examples/1_hello_world
-    - idf.py fullclean
-    - idf.py build
-    - cd ../../
-    - cd examples/2_drivers
-    - idf.py fullclean
-    - idf.py build
-    - cd ../../
-    - cd examples/3_wifi_connection
-    - idf.py fullclean
-    - idf.py build
-    - cd ../../
-    - cd examples/4_network_config
-    - idf.py fullclean
-    - idf.py build
-    - cd ../../
-    - cd examples/5_app_control
-    - idf.py fullclean
-    - idf.py build
-    - cd ../../
-    - cd examples/6_ota
-    - idf.py fullclean
-    - idf.py build
-    - cd ../../
-    - cd examples/7_recognition
-    - idf.py fullclean
-    - idf.py build
+build_demo:
+  extends:
+    - .build_examples_template
+  parallel:
+    matrix:
+      - IMAGE: espressif/idf:release-v4.4
+      - IMAGE: espressif/idf:release-v5.0
+  variables:
+    EXAMPLE_DIR: examples
 
 build_docs:
     stage: build
@@ -124,7 +94,6 @@ build_docs:
       - make clean && make html
       - cd ../
 
-
 push_master_to_github:
   stage: deploy
   only:
@@ -153,5 +122,4 @@ push_master_to_github:
     # NB: In gitlab 9.x, CI_BUILD_REF was deprecated. New name is CI_COMMIT_REF. If below command suddenly
     # generates bash syntax errors, this is probably why.
     - eval $(git for-each-ref --shell bash --format 'if [ $CI_BUILD_REF == %(objectname) ]; then git checkout -B %(refname:strip=3); git push --follow-tags github %(refname:strip=3); fi;' $GITHUB_PUSH_REFS)
-  
-  
+
