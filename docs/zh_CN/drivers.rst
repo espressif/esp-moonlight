@@ -171,15 +171,15 @@ ADC 内部的参考电压为 1100 mv ，内部还有一个可调的衰减系数�
 
         /**< Configure ADC */
         adc1_config_width(ADC_WIDTH_BIT_12);
-        adc1_config_channel_atten(g_adc_ch_bat, ADC_ATTEN_DB_11);
+        adc1_config_channel_atten(g_adc_ch_bat, ADC_ATTEN_DB_12);
 
         /**< Characterize ADC */
         g_adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-        esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, g_adc_chars);
+        esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_12, ADC_WIDTH_BIT_12, DEFAULT_VREF, g_adc_chars);
         print_char_val_type(val_type);
 
         xTaskCreatePinnedToCore(sensor_battery_task, "battery", 1024 * 2, NULL, 3, NULL, 1);
-        
+
         return ESP_OK;
     }
 
