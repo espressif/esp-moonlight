@@ -3,6 +3,6 @@ dependencies:
   moonlight_board:
     override_path: ../../../components/moonlight_board
   espressif/esp-sr:
-    version: "^1.5.1"
+    version: "^1.6.0"
   idf:
     version: ">=4.1.0"

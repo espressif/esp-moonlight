@@ -347,12 +347,12 @@ esp_err_t sensor_battery_init(int32_t adc_channel, int32_t chrg_num, int32_t stb
     //-------------ADC1 Config---------------//
     adc_oneshot_chan_cfg_t config = {
         .bitwidth = ADC_BITWIDTH_DEFAULT,
-        .atten = ADC_ATTEN_DB_11,
+        .atten = (ADC_ATTEN_DB_6 + 1),
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(battery_adc_handle, BATTERY_ADC_CHAN, &config));
 
     //-------------ADC1 Calibration Init---------------//
-    do_calibration = example_adc_calibration_init(ADC_UNIT_1, ADC_ATTEN_DB_11, &battery_adc_cali_handle);
+    do_calibration = example_adc_calibration_init(ADC_UNIT_1, (ADC_ATTEN_DB_6 + 1), &battery_adc_cali_handle);
 #else
     g_adc_ch_bat = adc_channel;
     g_bat_chrg_num = chrg_num;
@@ -362,11 +362,11 @@ esp_err_t sensor_battery_init(int32_t adc_channel, int32_t chrg_num, int32_t stb
 
     /**< Configure ADC */
     adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(g_adc_ch_bat, ADC_ATTEN_DB_11);
+    adc1_config_channel_atten(g_adc_ch_bat, ADC_ATTEN_DB_12);
 
     /**< Characterize ADC */
     g_adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, g_adc_chars);
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_12, ADC_WIDTH_BIT_12, DEFAULT_VREF, g_adc_chars);
     print_char_val_type(val_type);
 
 #endif
