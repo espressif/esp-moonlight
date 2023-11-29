@@ -13,13 +13,15 @@
 #include "esp_random.h"
 #include "app_speech_if.h"
 #include "board_moonlight.h"
+#if BOARD_SUPPORT_SPEAKER
+#include "audio_player.h"
+#endif
 
 static led_rgb_t *g_leds = NULL;
 typedef struct {
     uint8_t r;
     uint8_t g;
     uint8_t b;
-
 } led_color_t;
 
 static led_color_t led_color = {0};
@@ -32,7 +34,13 @@ static void sr_wake(void *arg)
     g_leds->get_rgb(g_leds, &led_color_wake_bk.r, &led_color_wake_bk.g, &led_color_wake_bk.b);
     /**< Turn on the breathing light */
     xTaskCreate(breath_light_task, "breath_light_task", 1024 * 2, (void*)g_leds, configMAX_PRIORITIES - 1, &g_breath_light_task_handle);
-
+#if BOARD_SUPPORT_SPEAKER
+    FILE *fp;
+    fp = fopen("/spiffs/echo_cn_wake.wav", "rb");
+    if (fp) {
+        audio_player_play(fp);
+    }
+#endif
 }
 
 static void sr_cmd(void *arg)
@@ -42,6 +50,14 @@ static void sr_cmd(void *arg)
         g_leds->set_rgb(g_leds, led_color_wake_bk.r, led_color_wake_bk.g, led_color_wake_bk.b);
         g_breath_light_task_handle = NULL;
     }
+
+#if BOARD_SUPPORT_SPEAKER
+    FILE *fp;
+    fp = fopen("/spiffs/echo_cn_ok.wav", "rb");
+    if (fp) {
+        audio_player_play(fp);
+    }
+#endif
 
     int32_t cmd_id = (int32_t)arg;
 
@@ -111,13 +127,19 @@ static void sr_cmd(void *arg)
 
 static void sr_cmd_exit(void *arg)
 {
+#if BOARD_SUPPORT_SPEAKER
+        FILE *fp;
+        fp = fopen("/spiffs/echo_cn_end.wav", "rb");
+        if (fp) {
+            audio_player_play(fp);
+        }
+#endif
     if (NULL != g_breath_light_task_handle) {
         vTaskDelete(g_breath_light_task_handle);
         g_leds->set_rgb(g_leds, led_color_wake_bk.r, led_color_wake_bk.g, led_color_wake_bk.b);
         g_breath_light_task_handle = NULL;
     }
 }
-
 
 void app_main(void)
 {

@@ -2,7 +2,9 @@
 dependencies:
   moonlight_board:
     override_path: ../../../components/moonlight_board
-  espressif/esp-sr:
-    version: "^1.6.0"
-  idf:
-    version: ">=4.1.0"
+  chmorgan/esp-audio-player:
+    version: "^1.0.5"
+    rules:
+      - if: idf_version >=5.0 && target == esp32s3
+  espressif/esp-sr: "^1.6.0"
+  idf: ">=4.1.0"
