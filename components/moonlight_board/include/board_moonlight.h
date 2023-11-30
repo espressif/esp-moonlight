@@ -18,6 +18,7 @@
 #include "esp_err.h"
 #include "esp_random.h"
 #include "esp_check.h"
+#include "esp_idf_version.h"
 #include "nvs_flash.h"
 #include "led_rgb.h"
 #include "iot_button.h"
@@ -51,16 +52,22 @@
 
 #elif defined CONFIG_IDF_TARGET_ESP32S3
 
-#define BOARD_BAT_ADC_CHANNEL 7
-#define BOARD_GPIO_SENSOR_INT 9
-#define BOARD_DMIC_I2S_SCK    39
-#define BOARD_DMIC_I2S_WS     38
-#define BOARD_DMIC_I2S_SDO    40
-#define BOARD_GPIO_LED_R      1
-#define BOARD_GPIO_LED_G      2
-#define BOARD_GPIO_LED_B      16
-#define BOARD_GPIO_BAT_CHRG   -1
-#define BOARD_GPIO_BAT_STBY   -1
+#define BOARD_BAT_ADC_CHANNEL    7
+#define BOARD_GPIO_SENSOR_INT    9
+#define BOARD_DMIC_I2S_SCK       39
+#define BOARD_DMIC_I2S_WS        38
+#define BOARD_DMIC_I2S_SDO       40
+#define BOARD_GPIO_LED_R         1
+#define BOARD_GPIO_LED_G         2
+#define BOARD_GPIO_LED_B         16
+#define BOARD_GPIO_BAT_CHRG      -1
+#define BOARD_GPIO_BAT_STBY      -1
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#define BOARD_SUPPORT_SPEAKER    1
+#endif
+#define BOARD_DSPEAKER_I2S_WS    45
+#define BOARD_DSPEAKER_I2S_BCK   48
+#define BOARD_DSPEAKER_I2S_SDO   47
 
 #endif
 

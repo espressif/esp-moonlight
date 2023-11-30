@@ -36,6 +36,9 @@
 #include "model_path.h"
 #include "esp_process_sdkconfig.h"
 #include "esp_mn_speech_commands.h"
+#if BOARD_SUPPORT_SPEAKER
+#include "audio_player.h"
+#endif
 
 static const char *TAG = "speeech recognition";
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -64,6 +67,29 @@ char *commands[] = {
     "jian xiao liang du",
 };
 
+#if BOARD_SUPPORT_SPEAKER
+
+#define SPIFFS_BASE       "/spiffs"
+
+static i2s_chan_handle_t tx_chan;        // I2S tx device handler
+
+static esp_err_t audio_player_mute(AUDIO_PLAYER_MUTE_SETTING setting)
+{
+    return ESP_OK;
+}
+
+static esp_err_t audio_player_reconfig_std(uint32_t rate, uint32_t bits_cfg, i2s_slot_mode_t ch)
+{
+    return ESP_OK;
+}
+
+static esp_err_t audio_player_write(void *audio_buffer, size_t len, size_t *bytes_written, uint32_t timeout_ms)
+{
+    return i2s_channel_write(tx_chan, audio_buffer, len, bytes_written, timeout_ms);
+}
+
+#endif
+
 static void i2s_init(void)
 {
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -72,7 +98,7 @@ static void i2s_init(void)
         .role = I2S_ROLE_MASTER,
         .dma_desc_num = 3,
         .dma_frame_num = 300,
-        .auto_clear = false,
+        .auto_clear = true,
     };
     ESP_ERROR_CHECK(i2s_new_channel(&rx_chan_cfg, NULL, &rx_chan));
 
@@ -94,8 +120,35 @@ static void i2s_init(void)
     };
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(rx_chan, &rx_std_cfg));
     i2s_channel_enable(rx_chan);
+
+#if BOARD_SUPPORT_SPEAKER
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(1, I2S_ROLE_MASTER);
+    chan_cfg.auto_clear = true; // Auto clear the legacy data in the DMA buffer
+    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_chan, NULL));
+    i2s_std_config_t tx_std_cfg = {
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(16000),
+        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        .gpio_cfg = {
+            .mclk = I2S_GPIO_UNUSED,
+            .bclk = BOARD_DSPEAKER_I2S_BCK,
+            .ws = BOARD_DSPEAKER_I2S_WS,
+            .dout = BOARD_DSPEAKER_I2S_SDO,
+            .din = I2S_GPIO_UNUSED,
+            .invert_flags = {
+                .mclk_inv = false,
+                .bclk_inv = false,
+                .ws_inv = false,
+            },
+        },
+    };
+    tx_std_cfg.clk_cfg.mclk_multiple = 384;
+
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_chan, &tx_std_cfg));
+    ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
+#endif
+
 #else
-    i2s_config_t i2s_config = {
+    i2s_config_t rx_i2s_config = {
         .mode = I2S_MODE_MASTER | I2S_MODE_RX,           // the mode must be set according to DSP configuration
         .sample_rate = 16000,                            // must be the same as DSP configuration
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,    // must be the same as DSP configuration
@@ -105,16 +158,17 @@ static void i2s_init(void)
         .dma_buf_len = 300,
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL2,
     };
-    i2s_pin_config_t pin_config = {
+    i2s_pin_config_t rx_pin_config = {
         .bck_io_num = BOARD_DMIC_I2S_SCK,  // IIS_SCLK
         .ws_io_num = BOARD_DMIC_I2S_WS,    // IIS_LCLK
         .data_out_num = -1,                // IIS_DSIN
         .data_in_num = BOARD_DMIC_I2S_SDO  // IIS_DOUT
     };
-    i2s_driver_install(1, &i2s_config, 0, NULL);
-    i2s_set_pin(1, &pin_config);
+    i2s_driver_install(1, &rx_i2s_config, 0, NULL);
+    i2s_set_pin(1, &rx_pin_config);
     i2s_zero_dma_buffer(1);
 #endif
+
 }
 
 void recsrcTask(void *arg)
@@ -243,5 +297,26 @@ esp_err_t sr_handler_install(sr_cb_type_t type, sr_cb_t handler, void *args)
 esp_err_t speech_recognition_init(void)
 {
     xTaskCreatePinnedToCore(recsrcTask, "recsrcTask", 8 * 1024, NULL, 8, NULL, 1);
+#if BOARD_SUPPORT_SPEAKER
+    printf("Initializing SPIFFS\n");
+    esp_vfs_spiffs_conf_t conf = {
+        .base_path = SPIFFS_BASE,
+        .partition_label = NULL,
+        .max_files = 2,
+        .format_if_mount_failed = true
+    };
+
+    // Use settings defined above to initialize and mount SPIFFS filesystem.
+    // Note: esp_vfs_spiffs_register is an all-in-one convenience function.
+    ESP_ERROR_CHECK(esp_vfs_spiffs_register(&conf));
+
+    audio_player_config_t config = {
+        .mute_fn = audio_player_mute,
+        .clk_set_fn = audio_player_reconfig_std,
+        .write_fn = audio_player_write,
+    };
+    ESP_ERROR_CHECK(audio_player_new(config));
+    ESP_LOGI(TAG, "audio player init success");
+#endif
     return ESP_OK;
 }
